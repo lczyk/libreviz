@@ -13,7 +13,8 @@ Dim t as Integer
 Dim x as Integer
 Dim y as Integer
 
-For t = 0 To 9
+For t = 0 To 999999
+    Call Clear
     For x = 0 To 9
         For y = 0 To 9
             Call Anim(t, x, y)
@@ -59,7 +60,7 @@ REM set the background color of the first 10 rows and columns to black
 For i = 0 To 9
     For j = 0 To 9
         oCell = oSheet.getCellByPosition(i, j)
-        oCell.cellbackcolor = RGB(0, 0, 0)
+        oCell.cellbackcolor = -1
     Next j
 Next i
 
@@ -76,9 +77,7 @@ oCell = oSheet.getCellByPosition(x, y)
 REM set the background color of the cell at position (x, y) to red
 
 If t Mod 2 = 0 Then
-    oCell.cellbackcolor = RGB(255, 0, 0)
-Else
-    oCell.cellbackcolor = RGB(0, 0, 0)
+    oCell.cellbackcolor = RGB(255, x*10, y*10)
 End If
 
 End Sub
