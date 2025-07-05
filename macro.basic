@@ -1,0 +1,84 @@
+REM ============================================================================
+Sub Main
+
+Call Setup (1500, 500)
+
+Dim oSheet as Object
+Dim oCell as Object
+oSheet = ThisComponent.CurrentController.getActiveSheet()
+
+REM Setup animation which calls Anim with t, x, y in a 10x10 grid
+
+Dim t as Integer
+Dim x as Integer
+Dim y as Integer
+
+For t = 0 To 9
+    For x = 0 To 9
+        For y = 0 To 9
+            Call Anim(t, x, y)
+        Next y
+    Next x
+    Wait 100
+Next t
+
+End Sub
+
+REM ============================================================================
+
+Sub Setup (w as Integer, h as Integer)
+
+oSheet = ThisComponent.CurrentController.getActiveSheet()
+
+Dim i as Integer
+
+For i = 0 To 9
+    oSheet.Columns(i).Width = w
+Next i
+
+For i = 0 To 9
+    oSheet.Rows(i).Height = h
+Next i
+
+Call Clear
+
+End Sub
+
+
+REM ============================================================================
+
+Sub Clear
+
+oSheet = ThisComponent.CurrentController.getActiveSheet()
+
+Dim i as Integer
+Dim j as Integer
+
+REM set the background color of the first 10 rows and columns to black
+
+For i = 0 To 9
+    For j = 0 To 9
+        oCell = oSheet.getCellByPosition(i, j)
+        oCell.cellbackcolor = RGB(0, 0, 0)
+    Next j
+Next i
+
+End Sub
+
+REM ============================================================================
+REM This is kinda like a fragment shader
+
+Sub Anim (t as Integer, x as Integer, y as Integer)
+
+oSheet = ThisComponent.CurrentController.getActiveSheet()
+oCell = oSheet.getCellByPosition(x, y)
+
+REM set the background color of the cell at position (x, y) to red
+
+If t Mod 2 = 0 Then
+    oCell.cellbackcolor = RGB(255, 0, 0)
+Else
+    oCell.cellbackcolor = RGB(0, 0, 0)
+End If
+
+End Sub
