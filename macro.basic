@@ -1,22 +1,25 @@
 REM ============================================================================
 Sub Main
 
-Call Setup (1500, 500)
+REM Rows and columns of the animation
+
+r = 45
+c = 24
+
+Call Setup (r, c, 1500, 500)
 
 Dim oSheet as Object
 Dim oCell as Object
 oSheet = ThisComponent.CurrentController.getActiveSheet()
-
-REM Setup animation which calls Anim with t, x, y in a 10x10 grid
 
 Dim t as Integer
 Dim x as Integer
 Dim y as Integer
 
 For t = 0 To 999999
-    Call Clear
-    For x = 0 To 9
-        For y = 0 To 9
+    Call Clear (r, c)
+    For x = 0 To c - 1
+        For y = 0 To r - 1
             Call Anim(t, x, y)
         Next y
     Next x
@@ -27,40 +30,39 @@ End Sub
 
 REM ============================================================================
 
-Sub Setup (w as Integer, h as Integer)
+Sub Setup (r as Integer, c as Integer, w as Integer, h as Integer)
 
 oSheet = ThisComponent.CurrentController.getActiveSheet()
 
 Dim i as Integer
 
-For i = 0 To 9
+For i = 0 To c - 1
     oSheet.Columns(i).Width = w
 Next i
 
-For i = 0 To 9
+For i = 0 To r - 1
     oSheet.Rows(i).Height = h
 Next i
 
-Call Clear
+Call Clear (r, c)
 
 End Sub
 
 
 REM ============================================================================
 
-Sub Clear
+Sub Clear (r as Integer, c as Integer)
 
 oSheet = ThisComponent.CurrentController.getActiveSheet()
 
 Dim i as Integer
 Dim j as Integer
 
-REM set the background color of the first 10 rows and columns to black
-
-For i = 0 To 9
-    For j = 0 To 9
+For i = 0 To c - 1
+    For j = 0 To r - 1
         oCell = oSheet.getCellByPosition(i, j)
         oCell.cellbackcolor = -1
+        REM oCell.cellbackcolor = RGB(20, 20, 20) ' Set to black
     Next j
 Next i
 
@@ -81,3 +83,21 @@ If t Mod 2 = 0 Then
 End If
 
 End Sub
+
+REM ============================================================================
+
+REM sub MoveCursorToC5
+REM     dim oDoc as object
+REM     dim oSheet as object
+REM     dim oCell as object
+REM 
+REM     oDoc = thiscomponent
+REM     oSheet = oDoc.getCurrentController().getActiveSheet()
+REM     oCell = oSheet.getCellRangeByName("C5")
+REM     
+REM     oDoc.getCurrentController().select(oCell)
+REM end sub
+
+
+
+
