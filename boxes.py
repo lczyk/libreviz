@@ -12,6 +12,27 @@ if TYPE_CHECKING:
 else:
     TypeAlias = str  # type: ignore[assignment]
 
+
+if sys.platform == "darwin":
+    import Quartz
+    import time
+    from pyautogui._pyautogui_osx import _sendMouseEvent
+
+    def _click(x, y):
+        _sendMouseEvent(Quartz.kCGEventLeftMouseDown, x, y, Quartz.kCGMouseButtonLeft)
+        time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+        _sendMouseEvent(Quartz.kCGEventLeftMouseUp, x, y, Quartz.kCGMouseButtonLeft)
+        time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+
+        time.sleep(pyautogui.PAUSE)
+
+
+else:
+
+    def _click(x, y):
+        pyautogui.click(x, y, button=pyautogui.LEFT)
+
+
 from dataclasses import dataclass
 
 
@@ -73,6 +94,7 @@ def main():
         calibration_data = calibrate(
             # 1 on most monitors, 2 on high DPI monitors
             pixel_ratio=2,
+            # sleep_time=1.0,
         )
 
         os.execv(
@@ -171,8 +193,7 @@ def calibrate(
         location_bucket.left / pixel_ratio + 0.85 * location_bucket.width / pixel_ratio,
         location_bucket.top / pixel_ratio + 0.5 * location_bucket.height / pixel_ratio,
     )
-    pyautogui.moveTo(*bucket_location_2)
-    pyautogui.click()
+    _click(*bucket_location_2)
 
     no_fill_location = (
         bucket_location_2[0] - 10,
@@ -183,23 +204,22 @@ def calibrate(
     pyautogui.sleep(sleep_time)
 
     top_left_color = (
-        bucket_location_2[0] - 20,
-        bucket_location_2[1] + 120,
+        bucket_location_2[0] - 21,
+        bucket_location_2[1] + 125,
     )
 
     pyautogui.moveTo(*top_left_color)
     pyautogui.sleep(sleep_time)
 
     bottom_right_color = (
-        top_left_color[0] + 190,
-        top_left_color[1] + 155,
+        top_left_color[0] + 186,
+        top_left_color[1] + 152,
     )
 
     pyautogui.moveTo(*bottom_right_color)
     pyautogui.sleep(sleep_time)
 
-    pyautogui.moveTo(*top_left_cell)
-    pyautogui.click()
+    _click(*top_left_cell)
 
     # display a message box to check whether we want to proceed
     response = pyautogui.confirm(
@@ -230,7 +250,7 @@ def calibrate(
     )
 
 
-def _move_to_cell_i(calib: CalibrationData, c: tuple[int, int]):
+def _cell_coords_i(calib: CalibrationData, c: tuple[int, int]):
     """Move to the specified cell in the grid by index."""
     width = calib.x2 - calib.x1
     height = calib.y2 - calib.y1
@@ -238,10 +258,10 @@ def _move_to_cell_i(calib: CalibrationData, c: tuple[int, int]):
     cell_height = height / (calib.n_rows - 1)
     x = calib.x1 + cell_width * c[0]
     y = calib.y1 + cell_height * c[1]
-    pyautogui.moveTo(x, y)
+    return (x, y)
 
 
-def _move_to_cell_x(calib: CalibrationData, c: "tuple[str, str | int]"):
+def _cell_coords_x(calib: CalibrationData, c: "tuple[str, str | int]"):
     """Move to the specified cell in the grid by column letter and row number."""
     col, row = c
     col_index = ord(col.upper()) - ord("A")
@@ -250,110 +270,84 @@ def _move_to_cell_x(calib: CalibrationData, c: "tuple[str, str | int]"):
     row_index = int(row) - 1
     if row_index < 0 or row_index >= calib.n_rows:
         raise ValueError(f"Row {row} is out of range.")
-    _move_to_cell_i(calib, (col_index, row_index))
+    return _cell_coords_i(calib, (col_index, row_index))
 
 
-def _move_to_cell_x2(calib: CalibrationData, a: str):
+def _cell_coords_x2(calib: CalibrationData, a: str):
     """Move to the specified cell in the grid by column letter and row number."""
     a, b = a.split(":")
-    _move_to_cell_x(calib, (a, b))
+    return _cell_coords_x(calib, (a, b))
 
 
 @overload
-def move_to_cell(calib: CalibrationData, c: tuple[int, int]) -> None:
+def cell_coords(calib: CalibrationData, c: tuple[int, int]) -> None:
     """Move to the specified cell in the grid by index."""
 
 
 @overload
-def move_to_cell(calib: CalibrationData, c: "tuple[str, str | int]") -> None:
+def cell_coords(calib: CalibrationData, c: "tuple[str, str | int]") -> None:
     """Move to the specified cell in the grid by column letter and row number."""
 
 
 @overload
-def move_to_cell(calib: CalibrationData, c: str) -> None:
+def cell_coords(calib: CalibrationData, c: str) -> None:
     """Move to the specified cell in the grid by column letter and row number in a string format."""
 
 
 Coord: TypeAlias = "tuple[int, int] | tuple[str, str | int] | str"
 
 
-def move_to_cell(calib: CalibrationData, c: Coord) -> None:
+def cell_coords(calib: CalibrationData, c: Coord) -> tuple[int, int]:
     """Move to the specified cell in the grid."""
     if isinstance(c, str):
-        _move_to_cell_x2(calib, c)
+        return _cell_coords_x2(calib, c)
     elif isinstance(c, tuple):
         if all(isinstance(i, int) for i in c):
-            _move_to_cell_i(calib, c)
+            return _cell_coords_i(calib, c)
         else:
-            _move_to_cell_x(calib, c)
+            return _cell_coords_x(calib, c)
     else:
         raise TypeError(f"Invalid type for cell: {type(c)}")
 
-
-# ENSURE_PAUSE_TIME = 0.02
-ENSURE_PAUSE_TIME = 0.0
-
-
-def ensure_pause(sleep_time: float = ENSURE_PAUSE_TIME):
-    if pyautogui.PAUSE < sleep_time:
-        pyautogui.sleep(sleep_time)
-
-
 def select_range_fast(calib: CalibrationData, c1: Coord, c2: Coord):
     """Select a range of cells from (col1, row1) to (col2, row2)."""
-    move_to_cell(calib, c1)
-    pyautogui.click()
-    ensure_pause()
-    move_to_cell(calib, c2)
-    ensure_pause()
+    _click(*cell_coords(calib, c1))
     pyautogui.keyDown("shift")
-    ensure_pause()
-    pyautogui.click()
+    _click(*cell_coords(calib, c2))
     pyautogui.keyUp("shift")
-    ensure_pause()
 
 
 def open_bucket(calib: CalibrationData):
     """Open the bucket tool in LibreOffice."""
-    pyautogui.moveTo(calib.bx, calib.by)
-    ensure_pause()
-    pyautogui.click()
-    ensure_pause()
+    _click(calib.bx, calib.by)
 
 
-def move_to_color_i(calib: CalibrationData, c: "tuple[int, int]"):
+def color_coords(calib: CalibrationData, c: "tuple[int, int]"):
     """Move to the specified color cell in the color palette."""
     width = calib.cx3 - calib.cx2
     height = calib.cy3 - calib.cy2
     color_cell_width = width / (calib.n_color_cols - 1)
     color_cell_height = height / (calib.n_color_rows - 1)
     x = calib.cx2 + color_cell_width * c[0]
-    y = calib.cy2 + color_cell_height * c[0]
-    pyautogui.moveTo(x, y)
-
-
-def move_to_no_fill(calib: CalibrationData):
-    """Move to the 'No Fill' color cell in the color palette."""
-    pyautogui.moveTo(calib.cx1, calib.cy1)
+    y = calib.cy2 + color_cell_height * c[1]
+    return (x, y)
 
 
 global LAST_COLOR
 LAST_COLOR = None
 
 
-def apply_color_i(calib: CalibrationData, c: "tuple[int, int]"):
+def apply_color(calib: CalibrationData, c: "tuple[int, int]"):
     """Apply the color from the specified color cell in the color palette."""
     global LAST_COLOR
     if c == LAST_COLOR:
         # apply the same color again
-        pyautogui.moveTo(calib.bx - 20, calib.by)
+        coords = (calib.bx - 20, calib.by)
+        _click(*coords)
     else:
         # change color
         open_bucket(calib)
-        move_to_color_i(calib, c)
-
-    pyautogui.click()
-    ensure_pause()
+        _click(*color_coords(calib, c))
 
     LAST_COLOR = c
 
@@ -363,13 +357,12 @@ def apply_no_fill(calib: CalibrationData):
     global LAST_COLOR
     if LAST_COLOR == (-1, -1):
         # already applied 'No Fill'
-        pyautogui.moveTo(calib.bx - 20, calib.by)
+        position = (calib.bx - 20, calib.by)
     else:
         open_bucket(calib)
-        move_to_no_fill(calib)
+        position = (calib.cx1, calib.cy1)
 
-    pyautogui.click()
-    ensure_pause()
+    _click(*position)
 
     LAST_COLOR = (-1, -1)
 
@@ -396,7 +389,7 @@ def inward_spiral(calib: CalibrationData, color: "tuple[int, int]"):
 
     for n1, n2 in pairwise(nodes):
         select_range_fast(calib, n1, n2)
-        apply_color_i(calib, color)
+        apply_color(calib, color)
 
 
 def outward_spiral(calib: CalibrationData, color: "tuple[int, int]"):
@@ -405,7 +398,7 @@ def outward_spiral(calib: CalibrationData, color: "tuple[int, int]"):
 
     for n1, n2 in pairwise(nodes):
         select_range_fast(calib, n1, n2)
-        apply_color_i(calib, color)
+        apply_color(calib, color)
 
 
 def random_color(calib: CalibrationData) -> "tuple[int, int]":
@@ -419,12 +412,28 @@ def run(calib: CalibrationData):
     reset_all_colors(calib)
 
     # pyautogui.PAUSE = 0.0
-    pyautogui.PAUSE = 0.02
+    pyautogui.PAUSE = 0.03
 
-    while True:
-        inward_spiral(calib, random_color(calib))
-        outward_spiral(calib, random_color(calib))
+    # while True:
+    #     inward_spiral(calib, random_color(calib))
+    #     outward_spiral(calib, random_color(calib))
 
+    # Test pattern
+    for i in range(calib.n_color_cols):
+        for j in range(calib.n_color_rows):
+            print(f"Applying color ({i}, {j})")
+            _click(*cell_coords(calib, (i, 4 * j + 4)))
+            apply_color(calib, (i, j))
+            _click(*cell_coords(calib, (i, 4 * j + 4 + 1)))
+            apply_color(calib, (i, j))
+            _click(*cell_coords(calib, (i, 4 * j + 4 + 2)))
+            apply_color(calib, (i, j))
+            _click(*cell_coords(calib, (i, 4 * j + 4 + 3)))
+            apply_color(calib, (i, j))
+
+    select_range_fast(calib, "A:1", "D:4")
+    apply_no_fill(calib)
+    _click(*cell_coords(calib, "A:1"))
 
 if __name__ == "__main__":
     main()
