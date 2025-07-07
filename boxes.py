@@ -5,7 +5,12 @@ import json
 import base64
 from itertools import tee
 import random
+from typing import overload, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from typing_extensions import TypeAlias
+else:
+    TypeAlias = str  # type: ignore[assignment]
 
 from dataclasses import dataclass
 
@@ -24,6 +29,11 @@ class CalibrationData:
     cy2: int
     cx3: int
     cy3: int
+
+    n_cols: int
+    n_rows: int
+    n_color_cols: int
+    n_color_rows: int
 
     @classmethod
     def from_b64(cls, b64_data: str):
@@ -60,7 +70,10 @@ def main():
         os.execv(sys.executable, [sys.executable] + ["boxes.py", "calibrate"])
 
     elif sys.argv[1] == "calibrate":
-        calibration_data = calibrate()
+        calibration_data = calibrate(
+            # 1 on most monitors, 2 on high DPI monitors
+            pixel_ratio=2,
+        )
 
         os.execv(
             sys.executable,
@@ -84,24 +97,24 @@ def main():
         )
 
 
-def calibrate() -> CalibrationData:
-    # 1 on most monitors, 2 on high DPI monitors
-    DPI = 2
-
+def calibrate(
+    pixel_ratio: int = 1,
+    sleep_time: float = 0.1,
+) -> CalibrationData:
     # check that 'top_left.png' exists
     if not os.path.exists("./top_left.png"):
         print("Error: top_left.png not found.")
         exit()
 
     # locate the image on the screen
-    location1 = None
+    location_A1 = None
 
     try:
-        location1 = pyautogui.locateOnScreen("top_left.png", confidence=0.8)
+        location_A1 = pyautogui.locateOnScreen("top_left.png", confidence=0.8)
     except pyautogui.ImageNotFoundException:
         pass
 
-    if location1 is None:
+    if location_A1 is None:
         print("Error: top_left.png not found on screen.")
         exit()
 
@@ -114,20 +127,19 @@ def calibrate() -> CalibrationData:
         print("Error: bucket.png not found on screen.")
         exit()
 
-    print("top_left.png location:", location1)
-    print("bucket.png location:", location_bucket)
+    # print("top_left.png location:", location_A1)
+    # print("bucket.png location:", location_bucket)
 
     screen_size = pyautogui.size()
-    print(f"Screen size: {screen_size}")
+    # print(f"Screen size: {screen_size}")
 
     # top left cell
     top_left_cell = (
-        location1.left / DPI + 73,
-        location1.top / DPI + location1.height / DPI - 30,
+        location_A1.left / pixel_ratio + 73,
+        location_A1.top / pixel_ratio + location_A1.height / pixel_ratio - 30,
     )
     pyautogui.moveTo(*top_left_cell)
-
-    pyautogui.sleep(0.1)
+    pyautogui.sleep(sleep_time)
 
     # top right cell
     top_right_cell = (
@@ -135,8 +147,7 @@ def calibrate() -> CalibrationData:
         top_left_cell[1],
     )
     pyautogui.moveTo(*top_right_cell)
-
-    pyautogui.sleep(0.1)
+    pyautogui.sleep(sleep_time)
 
     # bottom left cell
     bottom_left_cell = (
@@ -144,8 +155,7 @@ def calibrate() -> CalibrationData:
         screen_size.height - 70,
     )
     pyautogui.moveTo(*bottom_left_cell)
-
-    pyautogui.sleep(0.1)
+    pyautogui.sleep(sleep_time)
 
     # bottom right cell
     bottom_right_cell = (
@@ -154,13 +164,12 @@ def calibrate() -> CalibrationData:
     )
 
     pyautogui.moveTo(*bottom_right_cell)
-
-    pyautogui.sleep(0.1)
+    pyautogui.sleep(sleep_time)
 
     # move to the bucket icon
     bucket_location_2 = (
-        location_bucket.left / DPI + 0.85 * location_bucket.width / DPI,
-        location_bucket.top / DPI + location_bucket.height / DPI / 2,
+        location_bucket.left / pixel_ratio + 0.85 * location_bucket.width / pixel_ratio,
+        location_bucket.top / pixel_ratio + 0.5 * location_bucket.height / pixel_ratio,
     )
     pyautogui.moveTo(*bucket_location_2)
     pyautogui.click()
@@ -171,8 +180,7 @@ def calibrate() -> CalibrationData:
     )
 
     pyautogui.moveTo(*no_fill_location)
-
-    pyautogui.sleep(0.2)
+    pyautogui.sleep(sleep_time)
 
     top_left_color = (
         bucket_location_2[0] - 20,
@@ -180,8 +188,7 @@ def calibrate() -> CalibrationData:
     )
 
     pyautogui.moveTo(*top_left_color)
-
-    pyautogui.sleep(0.2)
+    pyautogui.sleep(sleep_time)
 
     bottom_right_color = (
         top_left_color[0] + 190,
@@ -189,8 +196,7 @@ def calibrate() -> CalibrationData:
     )
 
     pyautogui.moveTo(*bottom_right_color)
-
-    pyautogui.sleep(0.2)
+    pyautogui.sleep(sleep_time)
 
     pyautogui.moveTo(*top_left_cell)
     pyautogui.click()
@@ -204,7 +210,7 @@ def calibrate() -> CalibrationData:
         print("Exiting script.")
         exit()
 
-    calibration_data = CalibrationData(
+    return CalibrationData(
         x1=int(top_left_cell[0]),
         y1=int(top_left_cell[1]),
         x2=int(bottom_right_cell[0]),
@@ -217,59 +223,89 @@ def calibrate() -> CalibrationData:
         cy2=int(top_left_color[1]),
         cx3=int(bottom_right_color[0]),
         cy3=int(bottom_right_color[1]),
+        n_cols=19,
+        n_rows=52,
+        n_color_cols=12,
+        n_color_rows=10,
     )
 
-    return calibration_data
 
-
-N_COLS = 19
-N_ROWS = 52
-
-N_COLOR_COLS = 12
-N_COLOR_ROWS = 10
-
-
-def move_to_cell_i(calib: CalibrationData, col, row):
+def _move_to_cell_i(calib: CalibrationData, c: tuple[int, int]):
     """Move to the specified cell in the grid by index."""
     width = calib.x2 - calib.x1
     height = calib.y2 - calib.y1
-    cell_width = width / (N_COLS - 1)
-    cell_height = height / (N_ROWS - 1)
-    x = calib.x1 + cell_width * col
-    y = calib.y1 + cell_height * row
+    cell_width = width / (calib.n_cols - 1)
+    cell_height = height / (calib.n_rows - 1)
+    x = calib.x1 + cell_width * c[0]
+    y = calib.y1 + cell_height * c[1]
     pyautogui.moveTo(x, y)
 
 
-def move_to_cell_x(calib: CalibrationData, a: "tuple[str, str | int]"):
+def _move_to_cell_x(calib: CalibrationData, c: "tuple[str, str | int]"):
     """Move to the specified cell in the grid by column letter and row number."""
-    col, row = a
+    col, row = c
     col_index = ord(col.upper()) - ord("A")
-    if col_index < 0 or col_index >= N_COLS:
+    if col_index < 0 or col_index >= calib.n_cols:
         raise ValueError(f"Column {col} is out of range.")
     row_index = int(row) - 1
-    if row_index < 0 or row_index >= N_ROWS:
+    if row_index < 0 or row_index >= calib.n_rows:
         raise ValueError(f"Row {row} is out of range.")
-    move_to_cell_i(calib, col_index, row_index)
+    _move_to_cell_i(calib, (col_index, row_index))
 
 
-ENSURE_PAUSE_TIME = 0.02
+def _move_to_cell_x2(calib: CalibrationData, a: str):
+    """Move to the specified cell in the grid by column letter and row number."""
+    a, b = a.split(":")
+    _move_to_cell_x(calib, (a, b))
 
 
-def ensure_pause():
-    if pyautogui.PAUSE < ENSURE_PAUSE_TIME:
-        pyautogui.sleep(ENSURE_PAUSE_TIME)
+@overload
+def move_to_cell(calib: CalibrationData, c: tuple[int, int]) -> None:
+    """Move to the specified cell in the grid by index."""
 
 
-def select_range_fast(
-    calib: CalibrationData,
-    a: "tuple[str, str | int]",
-    b: "tuple[str, str | int]",
-):
+@overload
+def move_to_cell(calib: CalibrationData, c: "tuple[str, str | int]") -> None:
+    """Move to the specified cell in the grid by column letter and row number."""
+
+
+@overload
+def move_to_cell(calib: CalibrationData, c: str) -> None:
+    """Move to the specified cell in the grid by column letter and row number in a string format."""
+
+
+Coord: TypeAlias = "tuple[int, int] | tuple[str, str | int] | str"
+
+
+def move_to_cell(calib: CalibrationData, c: Coord) -> None:
+    """Move to the specified cell in the grid."""
+    if isinstance(c, str):
+        _move_to_cell_x2(calib, c)
+    elif isinstance(c, tuple):
+        if all(isinstance(i, int) for i in c):
+            _move_to_cell_i(calib, c)
+        else:
+            _move_to_cell_x(calib, c)
+    else:
+        raise TypeError(f"Invalid type for cell: {type(c)}")
+
+
+# ENSURE_PAUSE_TIME = 0.02
+ENSURE_PAUSE_TIME = 0.0
+
+
+def ensure_pause(sleep_time: float = ENSURE_PAUSE_TIME):
+    if pyautogui.PAUSE < sleep_time:
+        pyautogui.sleep(sleep_time)
+
+
+def select_range_fast(calib: CalibrationData, c1: Coord, c2: Coord):
     """Select a range of cells from (col1, row1) to (col2, row2)."""
-    move_to_cell_x(calib, a)
+    move_to_cell(calib, c1)
     pyautogui.click()
     ensure_pause()
-    move_to_cell_x(calib, b)
+    move_to_cell(calib, c2)
+    ensure_pause()
     pyautogui.keyDown("shift")
     ensure_pause()
     pyautogui.click()
@@ -280,18 +316,19 @@ def select_range_fast(
 def open_bucket(calib: CalibrationData):
     """Open the bucket tool in LibreOffice."""
     pyautogui.moveTo(calib.bx, calib.by)
+    ensure_pause()
     pyautogui.click()
     ensure_pause()
 
 
-def move_to_color_i(calib: CalibrationData, col_i: int, row_i: int):
+def move_to_color_i(calib: CalibrationData, c: "tuple[int, int]"):
     """Move to the specified color cell in the color palette."""
     width = calib.cx3 - calib.cx2
     height = calib.cy3 - calib.cy2
-    color_cell_width = width / (N_COLOR_COLS - 1)
-    color_cell_height = height / (N_COLOR_ROWS - 1)
-    x = calib.cx2 + color_cell_width * col_i
-    y = calib.cy2 + color_cell_height * row_i
+    color_cell_width = width / (calib.n_color_cols - 1)
+    color_cell_height = height / (calib.n_color_rows - 1)
+    x = calib.cx2 + color_cell_width * c[0]
+    y = calib.cy2 + color_cell_height * c[0]
     pyautogui.moveTo(x, y)
 
 
@@ -304,22 +341,21 @@ global LAST_COLOR
 LAST_COLOR = None
 
 
-def apply_color_i(calib: CalibrationData, col_i: int, row_i: int):
+def apply_color_i(calib: CalibrationData, c: "tuple[int, int]"):
     """Apply the color from the specified color cell in the color palette."""
     global LAST_COLOR
-    this_color = (col_i, row_i)
-    if this_color == LAST_COLOR:
+    if c == LAST_COLOR:
         # apply the same color again
         pyautogui.moveTo(calib.bx - 20, calib.by)
     else:
         # change color
         open_bucket(calib)
-        move_to_color_i(calib, col_i, row_i)
+        move_to_color_i(calib, c)
 
     pyautogui.click()
     ensure_pause()
 
-    LAST_COLOR = this_color
+    LAST_COLOR = c
 
 
 def apply_no_fill(calib: CalibrationData):
@@ -355,77 +391,39 @@ def pairwise(iterable):
 
 
 def inward_spiral(calib: CalibrationData, color: "tuple[int, int]"):
-    nodes = [
-        ("A", 1),
-        ("S", 1),
-        ("S", 52),
-        ("A", 52),
-        ("A", 3),
-        ("Q", 3),
-        ("Q", 50),
-        ("C", 50),
-        ("C", 5),
-        ("O", 5),
-        ("O", 48),
-        ("E", 48),
-        ("E", 7),
-        ("M", 7),
-        ("M", 46),
-        ("G", 46),
-        ("G", 9),
-        ("K", 9),
-        ("K", 44),
-        ("I", 44),
-        ("I", 11),
-    ]
+    nodes = "A:1,S:1,S:52,A:52,A:3,Q:3,Q:50,C:50,C:5,O:5,O:48,E:48,E:7,M:7,M:46,G:46,G:9,K:9,K:44,I:44,I:11"
+    nodes = nodes.split(",")
 
     for n1, n2 in pairwise(nodes):
         select_range_fast(calib, n1, n2)
-        apply_color_i(calib, *color)
+        apply_color_i(calib, color)
 
 
 def outward_spiral(calib: CalibrationData, color: "tuple[int, int]"):
-    nodes = [
-        ("J", 43),
-        ("J", 10),
-        ("H", 10),
-        ("H", 45),
-        ("L", 45),
-        ("L", 8),
-        ("F", 8),
-        ("F", 47),
-        ("N", 47),
-        ("N", 6),
-        ("D", 6),
-        ("D", 49),
-        ("P", 49),
-        ("P", 4),
-        ("B", 4),
-        ("B", 51),
-        ("R", 51),
-        ("R", 2),
-        ("A", 2),
-    ]
+    nodes = "J:43,J:10,H:10,H:45,L:45,L:8,F:8,F:47,N:47,N:6,D:6,D:49,P:49,P:4,B:4,B:51,R:51,R:2,A:2"
+    nodes = nodes.split(",")
 
     for n1, n2 in pairwise(nodes):
         select_range_fast(calib, n1, n2)
-        apply_color_i(calib, *color)
+        apply_color_i(calib, color)
 
 
-def random_color():
-    random_color_row = random.randint(0, N_COLOR_ROWS - 1)
-    random_color_col = random.randint(0, N_COLOR_COLS - 1)
+def random_color(calib: CalibrationData) -> "tuple[int, int]":
+    random_color_row = random.randint(0, calib.n_color_rows - 1)
+    random_color_col = random.randint(0, calib.n_color_cols - 1)
     return random_color_col, random_color_row
 
+################################################################################
 
 def run(calib: CalibrationData):
     reset_all_colors(calib)
 
-    pyautogui.PAUSE = 0.0
+    # pyautogui.PAUSE = 0.0
+    pyautogui.PAUSE = 0.02
 
     while True:
-        inward_spiral(calib, random_color())
-        outward_spiral(calib, random_color())
+        inward_spiral(calib, random_color(calib))
+        outward_spiral(calib, random_color(calib))
 
 
 if __name__ == "__main__":
