@@ -12,6 +12,20 @@ if TYPE_CHECKING:
 else:
     TypeAlias = str  # type: ignore[assignment]
 
+from pynput import keyboard
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        # Graceless exit
+        os._exit(0)
+
+
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+listener.wait()
+
+print("Press ESC to exit the script.")
 
 if sys.platform == "darwin":
     import Quartz
@@ -309,6 +323,7 @@ def cell_coords(calib: CalibrationData, c: Coord) -> tuple[int, int]:
     else:
         raise TypeError(f"Invalid type for cell: {type(c)}")
 
+
 def select_range_fast(calib: CalibrationData, c1: Coord, c2: Coord):
     """Select a range of cells from (col1, row1) to (col2, row2)."""
     _click(*cell_coords(calib, c1))
@@ -406,7 +421,9 @@ def random_color(calib: CalibrationData) -> "tuple[int, int]":
     random_color_col = random.randint(0, calib.n_color_cols - 1)
     return random_color_col, random_color_row
 
+
 ################################################################################
+
 
 def run(calib: CalibrationData):
     reset_all_colors(calib)
@@ -434,6 +451,7 @@ def run(calib: CalibrationData):
     select_range_fast(calib, "A:1", "D:4")
     apply_no_fill(calib)
     _click(*cell_coords(calib, "A:1"))
+
 
 if __name__ == "__main__":
     main()
