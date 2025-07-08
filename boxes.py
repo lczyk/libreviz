@@ -6,6 +6,7 @@ import base64
 from itertools import tee
 import random
 from typing import overload, TYPE_CHECKING
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
@@ -45,9 +46,6 @@ else:
 
     def _click(x, y):
         pyautogui.click(x, y, button=pyautogui.LEFT)
-
-
-from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -357,12 +355,13 @@ def apply_color(calib: CalibrationData, c: "tuple[int, int]"):
     global LAST_COLOR
     if c == LAST_COLOR:
         # apply the same color again
-        coords = (calib.bx - 20, calib.by)
-        _click(*coords)
+        position = (calib.bx - 20, calib.by)
     else:
         # change color
         open_bucket(calib)
-        _click(*color_coords(calib, c))
+        position = color_coords(calib, c)
+
+    _click(*position)
 
     LAST_COLOR = c
 
@@ -425,29 +424,41 @@ def random_color(calib: CalibrationData) -> "tuple[int, int]":
 ################################################################################
 
 
+def test_pattern(calib: CalibrationData):
+    for i in range(calib.n_color_cols):
+        for j in range(calib.n_color_rows):
+            print(f"Applying color ({i}, {j})")
+            # _click(*cell_coords(calib, (i, 4 * j + 4)))
+            # apply_color(calib, (i, j))
+            # _click(*cell_coords(calib, (i, 4 * j + 4 + 1)))
+            # apply_color(calib, (i, j))
+            # _click(*cell_coords(calib, (i, 4 * j + 4 + 2)))
+            # apply_color(calib, (i, j))
+            # _click(*cell_coords(calib, (i, 4 * j + 4 + 3)))
+            # apply_color(calib, (i, j))
+
+            select_range_fast(
+                calib,
+                (chr(ord("A") + i), 4 * j + 4),
+                (chr(ord("A") + i), 4 * j + 4 + 3),
+            )
+            apply_color(calib, (i, j))
+
+
 def run(calib: CalibrationData):
     reset_all_colors(calib)
 
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
-    # while True:
-    #     inward_spiral(calib, random_color(calib))
-    #     outward_spiral(calib, random_color(calib))
+    while True:
+        inward_spiral(calib, random_color(calib))
+        outward_spiral(calib, random_color(calib))
 
     # Test pattern
-    for i in range(calib.n_color_cols):
-        for j in range(calib.n_color_rows):
-            print(f"Applying color ({i}, {j})")
-            _click(*cell_coords(calib, (i, 4 * j + 4)))
-            apply_color(calib, (i, j))
-            _click(*cell_coords(calib, (i, 4 * j + 4 + 1)))
-            apply_color(calib, (i, j))
-            _click(*cell_coords(calib, (i, 4 * j + 4 + 2)))
-            apply_color(calib, (i, j))
-            _click(*cell_coords(calib, (i, 4 * j + 4 + 3)))
-            apply_color(calib, (i, j))
+    test_pattern(calib)
 
+    # Clean up a tiny bit
     select_range_fast(calib, "A:1", "D:4")
     apply_no_fill(calib)
     _click(*cell_coords(calib, "A:1"))
