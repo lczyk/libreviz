@@ -407,42 +407,75 @@ def color_coords(calib: CalibrationData, c: "tuple[int, int]"):
 global LAST_COLOR
 LAST_COLOR = None
 
-
-def apply_color(calib: CalibrationData, c: "tuple[int, int]"):
-    """Apply the color from the specified color cell in the color palette."""
-    global LAST_COLOR
-    if c == LAST_COLOR:
-        # apply the same color again
-        position = (calib.bx - 20, calib.by)
-    else:
-        # change color
-        open_bucket(calib)
-        position = color_coords(calib, c)
-
-    _click(*position)
-
-    LAST_COLOR = c
+from typing import Protocol
 
 
-def apply_no_fill(calib: CalibrationData):
-    """Apply 'No Fill' color to the selected cells."""
-    global LAST_COLOR
-    if LAST_COLOR == (-1, -1):
-        # already applied 'No Fill'
-        position = (calib.bx - 20, calib.by)
-    else:
-        open_bucket(calib)
-        position = (calib.cx1, calib.cy1)
+class Color(Protocol):
+    def apply(): ...
 
-    _click(*position)
 
-    LAST_COLOR = (-1, -1)
+class StandardColor(Color):
+    def __init__(self, calib: CalibrationData, color: "tuple[int, int]") -> None:
+        self.calib = calib
+        self.color = color
 
+    def apply(self) -> None:
+        global LAST_COLOR
+        if LAST_COLOR == self.color:
+            # apply the same color again
+            position = (self.calib.bx - 20, self.calib.by)
+        else:
+            # change color
+            open_bucket(self.calib)
+            position = color_coords(self.calib, self.color)
+
+        _click(*position)
+
+        LAST_COLOR = self.color
+
+
+if TYPE_CHECKING:
+    _: Color = StandardColor()
+
+
+class NoFillColor(Color):
+    def __init__(self, calib: CalibrationData) -> None:
+        self.calib = calib
+
+    def apply(self) -> None:
+        global LAST_COLOR
+        if LAST_COLOR == "no-fill":
+            position = (self.calib.bx - 20, self.calib.by)
+        else:
+            open_bucket(self.calib)
+            position = (self.calib.cx1, self.calib.cy1)
+
+        _click(*position)
+
+        LAST_COLOR = "no-fill"
+
+
+class RandomColor(Color):
+    def __init__(self, calib: CalibrationData) -> None:
+        self.calib = calib
+
+    def apply(self) -> None:
+        color = random_color(self.calib)
+        global LAST_COLOR
+        if LAST_COLOR == color:
+            # apply the same color again
+            position = (self.calib.bx - 20, self.calib.by)
+        else:
+            # change color
+            open_bucket(self.calib)
+            position = color_coords(self.calib, color)
+        _click(*position)
+        LAST_COLOR = color
 
 def reset_all_colors(calib: CalibrationData):
     """Reset all colors in the grid to 'No Fill'."""
     select_range(calib, ("A", 1), ("S", 52))
-    apply_no_fill(calib)
+    NoFillColor(calib).apply()
 
 
 def pairwise(iterable):
@@ -455,22 +488,22 @@ def pairwise(iterable):
 ############################################################################
 
 
-def inward_spiral(calib: CalibrationData, color: "tuple[int, int]"):
+def inward_spiral(calib: CalibrationData, color: Color):
     nodes = "A:1,S:1,S:52,A:52,A:3,Q:3,Q:50,C:50,C:5,O:5,O:48,E:48,E:7,M:7,M:46,G:46,G:9,K:9,K:44,I:44,I:11"
     nodes = nodes.split(",")
 
     for n1, n2 in pairwise(nodes):
         select_range(calib, n1, n2)
-        apply_color(calib, color)
+        color.apply()
 
 
-def outward_spiral(calib: CalibrationData, color: "tuple[int, int]"):
+def outward_spiral(calib: CalibrationData, color: Color):
     nodes = "J:43,J:10,H:10,H:45,L:45,L:8,F:8,F:47,N:47,N:6,D:6,D:49,P:49,P:4,B:4,B:51,R:51,R:2,A:2"
     nodes = nodes.split(",")
 
     for n1, n2 in pairwise(nodes):
         select_range(calib, n1, n2)
-        apply_color(calib, color)
+        color.apply()
 
 
 def random_color(calib: CalibrationData) -> "tuple[int, int]":
@@ -500,11 +533,11 @@ def test_pattern(calib: CalibrationData):
                 (chr(ord("A") + i), 4 * j + 4),
                 (chr(ord("A") + i), 4 * j + 4 + 3),
             )
-            apply_color(calib, (i, j))
+            StandardColor(calib, (i, j)).apply()
 
 def column_lights(
     calib: CalibrationData,
-    color: "tuple[int, int]",
+    color: Color,
     sleep_time: float = 0.1,
 ):
     """Apply a color to each cell in a column."""
@@ -513,13 +546,13 @@ def column_lights(
     for i in column_indices:
         # select_range(calib, (chr(ord("A") + i), 1), (chr(ord("A") + i), calib.n_rows))
         select_column_index(calib, i)
-        apply_color(calib, color)
+        color.apply()
         pyautogui.sleep(sleep_time)
 
 
 def row_lights(
     calib: CalibrationData,
-    color: "tuple[int, int]",
+    color: Color,
     sleep_time: float = 0.1,
 ):
     """Apply a color to each cell in a row."""
@@ -528,14 +561,14 @@ def row_lights(
     for i in row_indices:
         # select_range(calib, ("A", i + 1), (chr(ord("A") + calib.n_cols - 1), i + 1))
         select_row_index(calib, i)
-        apply_color(calib, color)
+        color.apply()
         pyautogui.sleep(sleep_time)
 
 
 def column_row_lights(
     calib: CalibrationData,
-    col_color: "tuple[int, int]",
-    row_color: "tuple[int, int]",
+    col_color: Color,
+    row_color: Color,
     sleep_time: float = 0.1,
 ):
     """Apply a color to each cell in a column and then in a row."""
@@ -554,16 +587,29 @@ def column_row_lights(
             if len(column_indices) > len(row_indices) * ratio:
                 # apply columns
                 select_column_index(calib, column_indices.pop())
-                apply_color(calib, col_color)
+                col_color.apply()
             else:
                 # apply rows
                 select_row_index(calib, row_indices.pop())
-                apply_color(calib, row_color)
+                row_color.apply()
 
             time.sleep(sleep_time)
     else:
         raise NotImplementedError
 
+def cell_lights(
+    calib: CalibrationData,
+    color: Color,
+    sleep_time: float = 0.1,
+):
+    """Apply a color to each cell in the grid."""
+    coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
+    random.shuffle(coords)
+
+    for i, j in coords:
+        _click(*cell_coords(calib, (i, j)))
+        color.apply()
+        pyautogui.sleep(sleep_time)
 
 def run(calib: CalibrationData):
     reset_all_colors(calib)
@@ -575,6 +621,8 @@ def run(calib: CalibrationData):
     #     inward_spiral(calib, random_color(calib))
     #     outward_spiral(calib, random_color(calib))
 
+    cell_lights(calib, RandomColor(calib), sleep_time=0.0)
+
     # Test pattern
     # test_pattern(calib)
 
@@ -583,13 +631,13 @@ def run(calib: CalibrationData):
     # row_lights(calib, random_color(calib))
     # reset_all_colors(calib)
 
-    while True:
-        column_row_lights(calib, random_color(calib), random_color(calib), sleep_time=0)
-        # reset_all_colors(calib)
+    # while True:
+    #     column_row_lights(calib, random_color(calib), random_color(calib), sleep_time=0)
+    #     # reset_all_colors(calib)
 
     # Clean up a tiny bit
     select_range(calib, "A:1", "D:4")
-    apply_no_fill(calib)
+    NoFillColor(calib).apply()
     _click(*cell_coords(calib, "A:1"))
 
 
