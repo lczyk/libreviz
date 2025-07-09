@@ -1,3 +1,5 @@
-https://help.libreoffice.org/latest/en-US/text/sbasic/shared/01020000.html?DbPAR=BASIC
+# links
 
-8x15 on 3x3 monitors
+https://help.libreoffice.org/latest/en-US/text/sbasic/shared/01020000.html?DbPAR=BASIC
+https://github.com/socsieng/sendkeys
+https://github.com/BlueM/cliclick
