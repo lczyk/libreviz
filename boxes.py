@@ -454,13 +454,31 @@ class NoFillColor(Color):
 
         LAST_COLOR = "no-fill"
 
+class RandomOnceColor(Color):
+    def __init__(self, calib: CalibrationData) -> None:
+        self.calib = calib
+        self.color = _random_color(calib)
 
-class RandomColor(Color):
+    def apply(self) -> None:
+        global LAST_COLOR
+        if LAST_COLOR == self.color:
+            # apply the same color again
+            position = (self.calib.bx - 20, self.calib.by)
+        else:
+            # change color
+            open_bucket(self.calib)
+            position = color_coords(self.calib, self.color)
+
+        _click(*position)
+        LAST_COLOR = self.color
+
+
+class RandomChangingColor(Color):
     def __init__(self, calib: CalibrationData) -> None:
         self.calib = calib
 
     def apply(self) -> None:
-        color = random_color(self.calib)
+        color = _random_color(self.calib)
         global LAST_COLOR
         if LAST_COLOR == color:
             # apply the same color again
@@ -506,7 +524,7 @@ def outward_spiral(calib: CalibrationData, color: Color):
         color.apply()
 
 
-def random_color(calib: CalibrationData) -> "tuple[int, int]":
+def _random_color(calib: CalibrationData) -> "tuple[int, int]":
     random_color_row = random.randint(0, calib.n_color_rows - 1)
     random_color_col = random.randint(0, calib.n_color_cols - 1)
     return random_color_col, random_color_row
@@ -515,7 +533,7 @@ def random_color(calib: CalibrationData) -> "tuple[int, int]":
 ################################################################################
 
 
-def test_pattern(calib: CalibrationData):
+def pattern_palette_test(calib: CalibrationData):
     for i in range(calib.n_color_cols):
         for j in range(calib.n_color_rows):
             print(f"Applying color ({i}, {j})")
@@ -535,7 +553,7 @@ def test_pattern(calib: CalibrationData):
             )
             StandardColor(calib, (i, j)).apply()
 
-def column_lights(
+def pattern_column_lights(
     calib: CalibrationData,
     color: Color,
     sleep_time: float = 0.1,
@@ -550,7 +568,7 @@ def column_lights(
         pyautogui.sleep(sleep_time)
 
 
-def row_lights(
+def pattern_row_lights(
     calib: CalibrationData,
     color: Color,
     sleep_time: float = 0.1,
@@ -565,7 +583,7 @@ def row_lights(
         pyautogui.sleep(sleep_time)
 
 
-def column_row_lights(
+def pattern_column_row_lights(
     calib: CalibrationData,
     col_color: Color,
     row_color: Color,
@@ -597,19 +615,70 @@ def column_row_lights(
     else:
         raise NotImplementedError
 
-def cell_lights(
+def pattern_cells(
     calib: CalibrationData,
     color: Color,
     sleep_time: float = 0.1,
 ):
     """Apply a color to each cell in the grid."""
-    coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
-    random.shuffle(coords)
+    # coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
+    # random.shuffle(coords)
+    from collections import deque
+
+    def _probability(i: int, j: int, n_cols: int, n_rows: int) -> float:
+        # potability based on a gaussian distribution centered in the middle of the grid
+        center_x = n_cols / 2
+        center_y = n_rows / 2
+        sigma_x = n_cols / 4
+        sigma_y = n_rows / 4
+        return (
+            1
+            / (2 * 3.14159 * sigma_x * sigma_y)
+            * 2.71828
+            ** (
+                -(
+                    ((i - center_x) ** 2) / (2 * sigma_x**2)
+                    + ((j - center_y) ** 2) / (2 * sigma_y**2)
+                )
+            )
+        )
+
+    coords_with_probs = deque(
+        (i, j, _probability(i, j, calib.n_cols, calib.n_rows))
+        for i in range(calib.n_cols)
+        for j in range(calib.n_rows)
+    )
+
+    max_prob = max(prob for _, _, prob in coords_with_probs)
+    # Normalize probabilities to be between 0 and 1
+    coords_with_probs = deque(
+        (i, j, prob / max_prob) for i, j, prob in coords_with_probs
+    )
+
+    # Sort by probability in descending order
+    # coords_with_probs = deque(
+    #     sorted(coords_with_probs, key=lambda x: x[2], reverse=True)
+    # )
+
+    # Shuffle the coordinates with probabilities
+    random.shuffle(coords_with_probs)
+
+    coords = []
+    while coords_with_probs:
+        i, j, prob = coords_with_probs.popleft()
+        if random.random() < prob:
+            coords.append((i, j))
+        else:
+            # Reinsert the item at the end of the deque with the same probability
+            coords_with_probs.append((i, j, prob))
 
     for i, j in coords:
         _click(*cell_coords(calib, (i, j)))
         color.apply()
         pyautogui.sleep(sleep_time)
+
+################################################################################
+
 
 def run(calib: CalibrationData):
     reset_all_colors(calib)
@@ -621,7 +690,8 @@ def run(calib: CalibrationData):
     #     inward_spiral(calib, random_color(calib))
     #     outward_spiral(calib, random_color(calib))
 
-    cell_lights(calib, RandomColor(calib), sleep_time=0.0)
+    # pattern_cells(calib, RandomColor(calib), sleep_time=0.0)
+    pattern_cells(calib, RandomOnceColor(calib), sleep_time=0.0)
 
     # Test pattern
     # test_pattern(calib)
