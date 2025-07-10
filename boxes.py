@@ -7,6 +7,8 @@ from itertools import tee
 import random
 from typing import overload, TYPE_CHECKING
 from dataclasses import dataclass
+from typing import Protocol, Callable
+from collections import deque
 
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
@@ -359,6 +361,7 @@ def select_range(calib: CalibrationData, c1: Coord, c2: Coord):
     _click(*cell_coords(calib, c2))
     pyautogui.keyUp("shift")
 
+
 def select_column_index(calib: CalibrationData, col: "int | str"):
     """Select the entire column."""
     if isinstance(col, int):
@@ -388,6 +391,7 @@ def select_row_index(calib: CalibrationData, row: int):
     )
     _click(*coords)
 
+
 def open_bucket(calib: CalibrationData):
     """Open the bucket tool in LibreOffice."""
     _click(calib.bx, calib.by)
@@ -404,14 +408,38 @@ def color_coords(calib: CalibrationData, c: "tuple[int, int]"):
     return (x, y)
 
 
-global LAST_COLOR
-LAST_COLOR = None
+global RECENT_COLORS
+RECENT_COLORS = None
 
-from typing import Protocol
+
+def init_last_color(calib: CalibrationData):
+    """Initialize the LAST_COLOR variable."""
+    global RECENT_COLORS
+    RECENT_COLORS = deque(maxlen=calib.n_color_cols)
 
 
 class Color(Protocol):
     def apply(): ...
+
+
+def _apply(
+    calib: CalibrationData,
+    color: "tuple[int, int]",
+    f: Callable[[], None],
+) -> None:
+    global RECENT_COLORS
+    if len(RECENT_COLORS) > 0 and RECENT_COLORS[0] == color:
+        # apply the same color again
+        position = (calib.bx - 20, calib.by)
+        _click(*position)
+    else:
+        # change color
+        open_bucket(calib)
+        # position = color_coords
+        # _click(*position)
+        f()
+
+    RECENT_COLORS.appendleft(color)
 
 
 class StandardColor(Color):
@@ -420,18 +448,23 @@ class StandardColor(Color):
         self.color = color
 
     def apply(self) -> None:
-        global LAST_COLOR
-        if LAST_COLOR == self.color:
-            # apply the same color again
-            position = (self.calib.bx - 20, self.calib.by)
-        else:
-            # change color
-            open_bucket(self.calib)
-            position = color_coords(self.calib, self.color)
+        # global RECENT_COLORS
+        # if RECENT_COLORS.index(0) == self.color:
+        #     # apply the same color again
+        #     position = (self.calib.bx - 20, self.calib.by)
+        # else:
+        #     # change color
+        #     open_bucket(self.calib)
+        #     position = color_coords(self.calib, self.color)
 
-        _click(*position)
+        # _click(*position)
 
-        LAST_COLOR = self.color
+        # RECENT_COLORS.appendleft(self.color)
+        _apply(
+            self.calib,
+            self.color,
+            lambda: _click(*color_coords(self.calib, self.color)),
+        )
 
 
 if TYPE_CHECKING:
@@ -443,16 +476,10 @@ class NoFillColor(Color):
         self.calib = calib
 
     def apply(self) -> None:
-        global LAST_COLOR
-        if LAST_COLOR == "no-fill":
-            position = (self.calib.bx - 20, self.calib.by)
-        else:
-            open_bucket(self.calib)
-            position = (self.calib.cx1, self.calib.cy1)
-
+        open_bucket(self.calib)
+        position = (self.calib.cx1, self.calib.cy1)
         _click(*position)
 
-        LAST_COLOR = "no-fill"
 
 class RandomOnceColor(Color):
     def __init__(self, calib: CalibrationData) -> None:
@@ -460,17 +487,22 @@ class RandomOnceColor(Color):
         self.color = _random_color(calib)
 
     def apply(self) -> None:
-        global LAST_COLOR
-        if LAST_COLOR == self.color:
-            # apply the same color again
-            position = (self.calib.bx - 20, self.calib.by)
-        else:
-            # change color
-            open_bucket(self.calib)
-            position = color_coords(self.calib, self.color)
+        # global LAST_COLOR
+        # if LAST_COLOR == self.color:
+        #     # apply the same color again
+        #     position = (self.calib.bx - 20, self.calib.by)
+        # else:
+        #     # change color
+        #     open_bucket(self.calib)
+        #     position = color_coords(self.calib, self.color)
 
-        _click(*position)
-        LAST_COLOR = self.color
+        # _click(*position)
+        # LAST_COLOR = self.color
+        _apply(
+            self.calib,
+            self.color,
+            lambda: _click(*color_coords(self.calib, self.color)),
+        )
 
 
 class RandomChangingColor(Color):
@@ -478,17 +510,36 @@ class RandomChangingColor(Color):
         self.calib = calib
 
     def apply(self) -> None:
-        color = _random_color(self.calib)
-        global LAST_COLOR
-        if LAST_COLOR == color:
-            # apply the same color again
-            position = (self.calib.bx - 20, self.calib.by)
-        else:
-            # change color
-            open_bucket(self.calib)
-            position = color_coords(self.calib, color)
-        _click(*position)
-        LAST_COLOR = color
+        # color = _random_color(self.calib)
+        # global LAST_COLOR
+        # if LAST_COLOR == color:
+        #     # apply the same color again
+        #     position = (self.calib.bx - 20, self.calib.by)
+        # else:
+        #     # change color
+        #     open_bucket(self.calib)
+        #     position = color_coords(self.calib, color)
+        # _click(*position)
+        # LAST_COLOR = color
+        _apply(
+            self.calib,
+            _random_color(self.calib),
+            lambda: _click(*color_coords(self.calib, _random_color(self.calib))),
+        )
+
+
+class ArbitraryColor(Color):
+    def __init__(self, calib: CalibrationData, r: int, g: int, b: int) -> None:
+        self.calib = calib
+        self.r = r
+        self.g = g
+        self.b = b
+
+    def apply(self) -> None:
+        raise NotImplementedError(
+            "ArbitraryColor is not implemented yet. Use StandardColor or RandomOnceColor instead."
+        )
+
 
 def reset_all_colors(calib: CalibrationData):
     """Reset all colors in the grid to 'No Fill'."""
@@ -553,6 +604,7 @@ def pattern_palette_test(calib: CalibrationData):
             )
             StandardColor(calib, (i, j)).apply()
 
+
 def pattern_column_lights(
     calib: CalibrationData,
     color: Color,
@@ -615,6 +667,7 @@ def pattern_column_row_lights(
     else:
         raise NotImplementedError
 
+
 def pattern_cells(
     calib: CalibrationData,
     color: Color,
@@ -623,7 +676,6 @@ def pattern_cells(
     """Apply a color to each cell in the grid."""
     # coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
     # random.shuffle(coords)
-    from collections import deque
 
     def _probability(i: int, j: int, n_cols: int, n_rows: int) -> float:
         # potability based on a gaussian distribution centered in the middle of the grid
@@ -677,10 +729,12 @@ def pattern_cells(
         color.apply()
         pyautogui.sleep(sleep_time)
 
+
 ################################################################################
 
 
 def run(calib: CalibrationData):
+    init_last_color(calib)
     reset_all_colors(calib)
 
     # pyautogui.PAUSE = 0.0
