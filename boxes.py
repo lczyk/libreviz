@@ -43,7 +43,6 @@ if sys.platform == "darwin":
 
         time.sleep(pyautogui.PAUSE)
 
-
 else:
 
     def _click(x, y):
@@ -64,6 +63,8 @@ class CalibrationData:
     cy2: int
     cx3: int
     cy3: int
+
+    custom_color: tuple[float, float]  # (x, y) coordinates of the custom color button
 
     cell_width: float
     cell_height: float
@@ -115,7 +116,7 @@ def main():
         calibration_data = calibrate(
             # 1 on most monitors, 2 on high DPI monitors
             pixel_ratio=2,
-            # sleep_time=1.0,
+            sleep_time=0.0,
         )
 
         os.execv(
@@ -259,7 +260,14 @@ def calibrate(
     pyautogui.moveTo(*bottom_right_color)
     pyautogui.sleep(sleep_time)
 
-    _click(*top_left_cell)
+    custom_color = (
+        bottom_right_color[0] - 180,
+        bottom_right_color[1] + 85,
+    )
+
+    pyautogui.moveTo(*custom_color)
+
+    # _click(*top_left_cell)
 
     # display a message box to check whether we want to proceed
     response = pyautogui.confirm(
@@ -283,6 +291,7 @@ def calibrate(
         cy2=int(top_left_color[1]),
         cx3=int(bottom_right_color[0]),
         cy3=int(bottom_right_color[1]),
+        custom_color=custom_color,
         first_row=first_row,
         first_col=first_col,
         cell_width=cell_width,
@@ -357,9 +366,10 @@ def cell_coords(calib: CalibrationData, c: Coord) -> tuple[int, int]:
 def select_range(calib: CalibrationData, c1: Coord, c2: Coord):
     """Select a range of cells from (col1, row1) to (col2, row2)."""
     _click(*cell_coords(calib, c1))
-    pyautogui.keyDown("shift")
-    _click(*cell_coords(calib, c2))
-    pyautogui.keyUp("shift")
+    if c2 != c1:
+        pyautogui.keyDown("shift")
+        _click(*cell_coords(calib, c2))
+        pyautogui.keyUp("shift")
 
 
 def select_column_index(calib: CalibrationData, col: "int | str"):
@@ -435,11 +445,8 @@ def _apply(
     else:
         # change color
         open_bucket(calib)
-        # position = color_coords
-        # _click(*position)
         f()
-
-    RECENT_COLORS.appendleft(color)
+        RECENT_COLORS.appendleft(color)
 
 
 class StandardColor(Color):
@@ -448,18 +455,6 @@ class StandardColor(Color):
         self.color = color
 
     def apply(self) -> None:
-        # global RECENT_COLORS
-        # if RECENT_COLORS.index(0) == self.color:
-        #     # apply the same color again
-        #     position = (self.calib.bx - 20, self.calib.by)
-        # else:
-        #     # change color
-        #     open_bucket(self.calib)
-        #     position = color_coords(self.calib, self.color)
-
-        # _click(*position)
-
-        # RECENT_COLORS.appendleft(self.color)
         _apply(
             self.calib,
             self.color,
@@ -536,8 +531,21 @@ class ArbitraryColor(Color):
         self.b = b
 
     def apply(self) -> None:
-        raise NotImplementedError(
-            "ArbitraryColor is not implemented yet. Use StandardColor or RandomOnceColor instead."
+        _apply(
+            self.calib,
+            (self.r, self.g, self.b),
+            lambda: (
+                time.sleep(pyautogui.DARWIN_CATCH_UP_TIME),
+                _click(*self.calib.custom_color),
+                time.sleep(pyautogui.DARWIN_CATCH_UP_TIME),
+                pyautogui.typewrite(f"{self.r}"),
+                pyautogui.press("tab"),
+                pyautogui.typewrite(f"{self.g}"),
+                pyautogui.press("tab"),
+                pyautogui.typewrite(f"{self.b}"),
+                pyautogui.press("enter"),
+                time.sleep(pyautogui.DARWIN_CATCH_UP_TIME),
+            ),
         )
 
 
@@ -584,25 +592,42 @@ def _random_color(calib: CalibrationData) -> "tuple[int, int]":
 ################################################################################
 
 
-def pattern_palette_test(calib: CalibrationData):
+def pattern_palette_test_1(calib: CalibrationData):
     for i in range(calib.n_color_cols):
         for j in range(calib.n_color_rows):
             print(f"Applying color ({i}, {j})")
-            # _click(*cell_coords(calib, (i, 4 * j + 4)))
-            # apply_color(calib, (i, j))
-            # _click(*cell_coords(calib, (i, 4 * j + 4 + 1)))
-            # apply_color(calib, (i, j))
-            # _click(*cell_coords(calib, (i, 4 * j + 4 + 2)))
-            # apply_color(calib, (i, j))
-            # _click(*cell_coords(calib, (i, 4 * j + 4 + 3)))
-            # apply_color(calib, (i, j))
-
             select_range(
                 calib,
                 (chr(ord("A") + i), 4 * j + 4),
                 (chr(ord("A") + i), 4 * j + 4 + 3),
             )
             StandardColor(calib, (i, j)).apply()
+
+def pattern_palette_test_2(calib: CalibrationData):
+    """Apply colors in a pattern to the palette."""
+
+    def _xy_to_rgb(x: float, y: float) -> tuple[int, int, int]:
+        """Convert (x, y) coordinates to RGB values."""
+        r = int(255 * x)
+        g = int(255 * y)
+        b = int(255 * (1 - x) * (1 - y))
+        return r, g, b
+
+    D = 1
+    N_COLS = calib.n_cols // D
+    N_ROWS = calib.n_rows // D
+
+    coords = [(i, j) for i in range(N_COLS) for j in range(N_ROWS)]
+    # random.shuffle(coords)
+
+    for i, j in coords:
+        rgb = _xy_to_rgb(i / (N_COLS - 1), j / (N_ROWS - 1))
+        select_range(
+            calib,
+            (chr(ord("A") + i * D), j * D + 1),
+            (chr(ord("A") + i * D + (D - 1)), j * D + (D - 1) + 1),
+        )
+        ArbitraryColor(calib, *rgb).apply()
 
 
 def pattern_column_lights(
@@ -736,19 +761,24 @@ def pattern_cells(
 def run(calib: CalibrationData):
     init_last_color(calib)
     reset_all_colors(calib)
+    time.sleep(0.1)
 
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
+
+    # _click(*cell_coords(calib, "G:10"))
+    # ArbitraryColor(calib, 255, 0, 0).apply()
 
     # while True:
     #     inward_spiral(calib, random_color(calib))
     #     outward_spiral(calib, random_color(calib))
 
     # pattern_cells(calib, RandomColor(calib), sleep_time=0.0)
-    pattern_cells(calib, RandomOnceColor(calib), sleep_time=0.0)
+    # pattern_cells(calib, RandomOnceColor(calib), sleep_time=0.0)
 
     # Test pattern
-    # test_pattern(calib)
+    # pattern_palette_test_1(calib)
+    pattern_palette_test_2(calib)
 
     # column_lights(calib, random_color(calib))
     # reset_all_colors(calib)
@@ -760,9 +790,9 @@ def run(calib: CalibrationData):
     #     # reset_all_colors(calib)
 
     # Clean up a tiny bit
-    select_range(calib, "A:1", "D:4")
-    NoFillColor(calib).apply()
-    _click(*cell_coords(calib, "A:1"))
+    # select_range(calib, "A:1", "D:4")
+    # NoFillColor(calib).apply()
+    # _click(*cell_coords(calib, "A:1"))
 
 
 if __name__ == "__main__":
