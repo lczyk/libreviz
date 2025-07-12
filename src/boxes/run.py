@@ -63,9 +63,10 @@ def pattern_palette_test_2(calib: CalibrationData) -> None:
         b = int(255 * (1 - x) * (1 - y))
         return r, g, b
 
-    D = 1
-    N_COLS = calib.n_cols // D
-    N_ROWS = calib.n_rows // D
+    D_ROWS = 4
+    D_COLS = 2
+    N_COLS = calib.n_cols // D_COLS
+    N_ROWS = calib.n_rows // D_ROWS
 
     coords = [(i, j) for i in range(N_COLS) for j in range(N_ROWS)]
     # random.shuffle(coords)
@@ -74,8 +75,10 @@ def pattern_palette_test_2(calib: CalibrationData) -> None:
         rgb = _xy_to_rgb(i / (N_COLS - 1), j / (N_ROWS - 1))
         utils.select_range(
             calib,
-            (chr(ord("A") + i * D), j * D + 1),
-            (chr(ord("A") + i * D + (D - 1)), j * D + (D - 1) + 1),
+            # (chr(ord("A") + i * D), j * D + 1),
+            # (chr(ord("A") + i * D + (D - 1)), j * D + (D - 1) + 1),
+            (chr(ord("A") + i * D_COLS), j * D_ROWS + 1),
+            (chr(ord("A") + i * D_COLS + (D_COLS - 1)), j * D_ROWS + (D_ROWS - 1) + 1),
         )
         colors.ArbitraryColor(calib, *rgb).apply()
 
@@ -265,9 +268,6 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
-    # click(*cell_coords(calib, "G:10"))
-    # ArbitraryColor(calib, 255, 0, 0).apply()
-
     # while True:
     #     inward_spiral(calib, RandomChangingColor(calib))
     #     outward_spiral(calib, RandomOnceColor(calib))
@@ -287,8 +287,8 @@ def run(calib: CalibrationData) -> None:
     # )
 
     # Test pattern
-    pattern_palette_test_1(calib)
-    # pattern_palette_test_2(calib)
+    # pattern_palette_test_1(calib)
+    pattern_palette_test_2(calib)
 
     # column_lights(calib, random_color(calib))
     # reset_all_colors(calib)
