@@ -586,25 +586,29 @@ class RadialColor(Color):
     def __init__(
         self,
         calib: CalibrationData,
+        *,
         center: "tuple[int, int, int]",
         edge: "tuple[int, int, int]",
+        radius: float = 1.0,
     ) -> None:
         super().__init__()
         self.calib = calib
         self.center = center
         self.edge = edge
+        self.radius = radius
 
     def rgb(self) -> "tuple[int, int, int]":
         r = math.sqrt(self.w**2 + self.q**2)
-        if r < 1:
+        if r < self.radius:
+            alpha = r / self.radius
             color = (
-                int(self.center[0] * (1 - r) + self.edge[0] * r),
-                int(self.center[1] * (1 - r) + self.edge[1] * r),
-                int(self.center[2] * (1 - r) + self.edge[2] * r),
+                int(self.center[0] * (1 - alpha) + self.edge[0] * alpha),
+                int(self.center[1] * (1 - alpha) + self.edge[1] * alpha),
+                int(self.center[2] * (1 - alpha) + self.edge[2] * alpha),
             )
 
         else:
-            # If the radius is greater than 1, just apply the edge color
+            # If the radius is greater than self.radius, just apply the edge color
             color = self.edge
 
         return color
@@ -621,6 +625,13 @@ def reset_all_colors(calib: CalibrationData):
     """Reset all colors in the grid to 'No Fill'."""
     select_range(calib, ("A", 1), ("S", 52))
     NoFillColor(calib).apply()
+
+def reset_all_cell_contents(calib: CalibrationData):
+    """Reset all cell contents in the grid to 'No Fill'."""
+    select_range(calib, ("A", 1), ("S", 52))
+    pyautogui.press("backspace")
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+    pyautogui.press("enter")
 
 
 def pairwise(iterable):
@@ -794,47 +805,84 @@ def pattern_cells(
     # coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
     # random.shuffle(coords)
 
-    def _probability(i: int, j: int, n_cols: int, n_rows: int) -> float:
+    def _probability(i: int, j: int) -> float:
         # potability based on a gaussian distribution centered in the middle of the grid
         w, q = ij_2_wq(calib, i, j)
         return math.exp(-((w**2 + q**2) / (2 * (0.5**2))))
 
-    coords_with_probs = deque(
-        (i, j, _probability(i, j, calib.n_cols, calib.n_rows))
+    def _color(i: int, j: int) -> tuple[int, int, int]:
+        color.uv(*ij_2_uv(calib, i, j))
+        color.wq(*ij_2_wq(calib, i, j))
+        return color.rgb()
+
+    coords_with_probs_and_color = [
+        (i, j, _probability(i, j), _color(i, j))
         for i in range(calib.n_cols)
         for j in range(calib.n_rows)
-    )
+    ]
 
-    max_prob = max(prob for _, _, prob in coords_with_probs)
-    # Normalize probabilities to be between 0 and 1
-    coords_with_probs = deque(
-        (i, j, prob / max_prob) for i, j, prob in coords_with_probs
-    )
+    def _color_distance(c1: tuple[int, int, int], c2: tuple[int, int, int]) -> float:
+        """Calculate the Euclidean distance between two RGB colors."""
+        return math.sqrt(
+            (c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2
+        )
+
+    # group by color
+    coords_with_probs = {}
+    distance_tol = 10
+    for i, j, prob, color_rgb in coords_with_probs_and_color:
+        # Check if the color is already in the dictionary
+        found = False
+        for existing_color in coords_with_probs:
+            if _color_distance(existing_color, color_rgb) < distance_tol:
+                coords_with_probs[existing_color].append((i, j, prob))
+                found = True
+                break
+        if not found:
+            coords_with_probs[color_rgb] = [(i, j, prob)]
+
+    # shuffle the colors in each group
+    for color_rgb in coords_with_probs:
+        random.shuffle(coords_with_probs[color_rgb])
+
+    # max_prob = max(prob for _, _, prob in coords_with_probs)
+    # # Normalize probabilities to be between 0 and 1
+    # coords_with_probs = deque(
+    #     (i, j, prob / max_prob) for i, j, prob in coords_with_probs
+    # )
+
+    # Group by color
 
     # Sort by probability in descending order
     # coords_with_probs = deque(
     #     sorted(coords_with_probs, key=lambda x: x[2], reverse=True)
     # )
 
-    # Shuffle the coordinates with probabilities
-    random.shuffle(coords_with_probs)
+    # # Shuffle the coordinates with probabilities
+    # random.shuffle(coords_with_probs)
 
-    coords = []
-    while coords_with_probs:
-        i, j, prob = coords_with_probs.popleft()
-        if random.random() < prob:
-            coords.append((i, j))
-        else:
-            # Reinsert the item at the end of the deque with the same probability
-            coords_with_probs.append((i, j, prob))
+    # coords = []
+    # while coords_with_probs:
+    #     i, j, prob = coords_with_probs.popleft()
+    #     if random.random() < prob:
+    #         coords.append((i, j))
+    #     else:
+    #         # Reinsert the item at the end of the deque with the same probability
+    #         coords_with_probs.append((i, j, prob))
 
-    for i, j in coords:
-        _click(*cell_coords(calib, (i, j)))
-        color.uv(*ij_2_uv(calib, i, j))
-        color.wq(*ij_2_wq(calib, i, j))
-        color.apply()
-        pyautogui.sleep(sleep_time)
+    # for i, j in coords:
+    #     _click(*cell_coords(calib, (i, j)))
+    #     color.uv(*ij_2_uv(calib, i, j))
+    #     color.wq(*ij_2_wq(calib, i, j))
+    #     color.apply()
+    #     pyautogui.sleep(sleep_time)
 
+    for color_rgb, coords in coords_with_probs.items():
+        just_coords = [(i, j) for i, j, _ in coords]
+        for i, j in just_coords:
+            _click(*cell_coords(calib, (i, j)))
+            ArbitraryColor(calib, *color_rgb).apply()
+            pyautogui.sleep(sleep_time)
 
 ################################################################################
 
@@ -842,6 +890,7 @@ def pattern_cells(
 def run(calib: CalibrationData):
     init_last_color(calib)
     reset_all_colors(calib)
+    reset_all_cell_contents(calib)
     time.sleep(0.1)
 
     # pyautogui.PAUSE = 0.0
@@ -859,8 +908,9 @@ def run(calib: CalibrationData):
         calib,
         RadialColor(
             calib,
-            (255, 0, 0),  # red
-            (128, 128, 128),  # gray
+            center=(255, 0, 0),  # red
+            edge=(128, 128, 128),  # gray
+            radius=1.5,
         ),
         sleep_time=0.0,
     )
