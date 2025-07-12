@@ -1,12 +1,12 @@
 import json
 import os
 import sys
+import time
 
 import pyautogui
 
-from . import eject_button
+from . import colors, eject_button, patterns, text
 from .calibrate import CalibrationData, calibrate
-from .run import run
 
 eject_button.arm()
 
@@ -67,6 +67,51 @@ def main() -> None:
 
     else:
         raise ValueError(f"Unknown argument: {sys.argv[1]}. Expected 'calibrate' or 'run'.")
+
+
+def run(calib: CalibrationData) -> None:
+    colors.reset_all_colors(calib)
+    text.reset_all_cell_contents(calib)
+    time.sleep(0.1)
+
+    # pyautogui.PAUSE = 0.0
+    pyautogui.PAUSE = 0.03
+
+    # while True:
+    #     inward_spiral(calib, RandomChangingColor(calib))
+    #     outward_spiral(calib, RandomOnceColor(calib))
+
+    # pattern_cells(calib, RandomChangingColor(calib), sleep_time=0.0)
+    # pattern_cells(
+    #     calib,
+    #     # colors.RadialColor(
+    #     #     calib,
+    #     #     center=(255, 0, 0),  # red
+    #     #     edge=(128, 128, 128),  # gray
+    #     #     radius=1.5,
+    #     # ),
+    #     # colors.RandomChangingColor(calib),
+    #     colors.StandardColor.from_name(calib, "lime"),
+    #     sleep_time=0.0,
+    # )
+
+    # Test pattern
+    # pattern_palette_test_1(calib)
+    patterns.palette_test_2(calib)
+
+    # column_lights(calib, random_color(calib))
+    # reset_all_colors(calib)
+    # row_lights(calib, random_color(calib))
+    # reset_all_colors(calib)
+
+    # while True:
+    #     column_row_lights(calib, random_color(calib), random_color(calib), sleep_time=0)
+    #     # reset_all_colors(calib)
+
+    # Clean up a tiny bit
+    # select_range(calib, "A:1", "D:4")
+    # NoFillColor(calib).apply()
+    # click(*cell_coords(calib, "A:1"))
 
 
 if __name__ == "__main__":
