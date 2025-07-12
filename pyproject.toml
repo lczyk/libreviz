@@ -8,3 +8,77 @@ dependencies = [
     "opencv-python>=4.12.0.88",
     "pyautogui>=0.9.54",
 ]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.16.1",
+    "pytest>=8.4.1",
+    "ruff>=0.12.3",
+]
+
+[tool.mypy]
+ignore_missing_imports = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = true
+show_error_codes = true
+warn_unused_ignores = true
+warn_unused_configs = true
+explicit_package_bases = true
+enable_error_code = "explicit-override"
+extra_checks = true
+
+# Files to check
+files = [
+    "./src/**/*.py",
+    "./tests/**/*.py",
+]
+
+[tool.ruff]
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    ".env",
+    ".eggs",
+    "*.egg",
+    ".tox",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".vscode",
+    "*-env",
+]
+line-length = 120
+lint.ignore = [
+    "E501", # Line too long
+    "E402", # Module level import not at top of file
+    # "B023",
+    # "E731",
+    # "F722",
+    "PLR2004", # Magic values
+    #
+]
+lint.select = [
+    "E",   # pycodestyle
+    "F",   # Pyflakes
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "W",   # warnings
+    # "UP",  # pyupgrade
+    "I",   # isort
+    "Q",   # flake8-quotes
+    "RUF", # ruff
+    # "TID", # flake8-tidy-imports
+    "PERF", # perflint
+    "FURB", # refurb
+    "PL",   # pylint
+    "NPY",  # numpy
+    # "ISC",
+    #
+]
+output-format = 'concise'
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = ["-s", "--tb=short", "--color=yes"]
