@@ -1,6 +1,8 @@
 import base64
+import contextlib
 import json
 import os
+import sys
 from dataclasses import dataclass
 
 import pyautogui
@@ -48,7 +50,7 @@ class CalibrationData:
             return cls(**{k: v for k, v in data.items()})
         except (json.JSONDecodeError, TypeError) as e:
             print(f"Error decoding calibration data: {e}")
-            raise ValueError("Invalid calibration data format.")
+            raise ValueError("Invalid calibration data format.") from e
 
     def to_b64(self):
         """Convert the instance to a base64 encoded JSON string."""
@@ -62,19 +64,17 @@ def calibrate(
     # check that 'top_left.png' exists
     if not os.path.exists("./top_left.png"):
         print("Error: top_left.png not found.")
-        exit()
+        sys.exit()
 
     # locate the image on the screen
     location_A1 = None
 
-    try:
+    with contextlib.suppress(pyautogui.ImageNotFoundException):
         location_A1 = pyautogui.locateOnScreen("top_left.png", confidence=0.8)
-    except pyautogui.ImageNotFoundException:
-        pass
 
     if location_A1 is None:
         print("Error: top_left.png not found on screen.")
-        exit()
+        sys.exit()
 
     try:
         location_bucket = pyautogui.locateOnScreen("bucket.png", confidence=0.8)
@@ -83,7 +83,7 @@ def calibrate(
 
     if location_bucket is None:
         print("Error: bucket.png not found on screen.")
-        exit()
+        sys.exit()
 
     # print("top_left.png location:", location_A1)
     # print("bucket.png location:", location_bucket)
@@ -188,7 +188,7 @@ def calibrate(
 
     if response == "No":
         print("Exiting script.")
-        exit()
+        sys.exit()
 
     return CalibrationData(
         x1=int(top_left_cell[0]),

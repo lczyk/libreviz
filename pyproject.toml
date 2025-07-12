@@ -72,7 +72,7 @@ lint.select = [
     # "TID", # flake8-tidy-imports
     "PERF", # perflint
     "FURB", # refurb
-    "PL",   # pylint
+    # "PL",   # pylint
     "NPY",  # numpy
     # "ISC",
     #

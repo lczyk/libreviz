@@ -38,8 +38,7 @@ def _random_color(calib: CalibrationData) -> "tuple[int, int]":
     return random_color_col, random_color_row
 
 
-global RECENT_COLORS
-RECENT_COLORS = None
+RECENT_COLORS: deque = None
 
 
 def init_last_color(calib: CalibrationData):
@@ -77,7 +76,6 @@ def apply_or_recent(
     color: "tuple[int, int]",
     f: Callable[[], None],
 ) -> None:
-    global RECENT_COLORS
     if len(RECENT_COLORS) > 0 and RECENT_COLORS[0] == color:
         # apply the same color again
         position = (calib.bx - 20, calib.by)

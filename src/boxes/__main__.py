@@ -47,10 +47,10 @@ def main():
 
         if response == "No":
             print("Exiting script.")
-            exit()
+            sys.exit()
 
         # call self with 'run' argument and replace the current process
-        os.execv(sys.executable, [sys.executable] + [BOXES, "calibrate"])
+        os.execv(sys.executable, [sys.executable, BOXES, "calibrate"])
 
     elif sys.argv[1] == "calibrate":
         calibration_data = calibrate(
@@ -60,7 +60,7 @@ def main():
         )
         os.execv(
             sys.executable,
-            [sys.executable] + [BOXES, "run", calibration_data.to_b64()],
+            [sys.executable, BOXES, "run", calibration_data.to_b64()],
         )
 
     elif sys.argv[1] == "run":
@@ -68,7 +68,7 @@ def main():
             CD = CalibrationData.from_b64(sys.argv[2])
         except json.JSONDecodeError:
             print("Error: Invalid calibration data.")
-            exit()
+            sys.exit()
 
         print(CD)
 
