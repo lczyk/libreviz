@@ -9,6 +9,7 @@ from typing import overload, TYPE_CHECKING
 from dataclasses import dataclass
 from typing import Protocol, Callable
 from collections import deque
+import math
 
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias
@@ -429,10 +430,30 @@ def init_last_color(calib: CalibrationData):
 
 
 class Color(Protocol):
+    def __init__(self):
+        self.u: float = 0.0
+        self.v: float = 0.0
+        self.w: float = 0.0
+        self.q: float = 0.0
+
+    def rgb(self): ...
     def apply(): ...
 
+    def uv(self, u: float, v: float) -> None:
+        if u < -1 or u > 1:
+            raise ValueError(f"u must be between -1 and 1, got {u}")
+        if v < -1 or v > 1:
+            raise ValueError(f"v must be between -1 and 1, got {v}")
+        self.u = u
+        self.v = v
 
-def _apply(
+    def wq(self, w: float, q: float) -> None:
+        """Set the w/q coordinates for the color."""
+        self.w = w
+        self.q = q
+
+
+def apply_or_recent(
     calib: CalibrationData,
     color: "tuple[int, int]",
     f: Callable[[], None],
@@ -445,17 +466,25 @@ def _apply(
     else:
         # change color
         open_bucket(calib)
+        time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
         f()
         RECENT_COLORS.appendleft(color)
 
 
 class StandardColor(Color):
     def __init__(self, calib: CalibrationData, color: "tuple[int, int]") -> None:
+        super().__init__()
         self.calib = calib
         self.color = color
 
+    def rgb(self) -> "tuple[int, int, int]":
+        """Return the RGB values of the color."""
+        raise NotImplementedError(
+            "We don't have the lookup table for RGB values for the standard colors yet"
+        )
+
     def apply(self) -> None:
-        _apply(
+        apply_or_recent(
             self.calib,
             self.color,
             lambda: _click(*color_coords(self.calib, self.color)),
@@ -468,7 +497,14 @@ if TYPE_CHECKING:
 
 class NoFillColor(Color):
     def __init__(self, calib: CalibrationData) -> None:
+        super().__init__()
         self.calib = calib
+
+    def rgb(self) -> "tuple[int, int, int]":
+        """Return the RGB values of the 'No Fill' color."""
+        raise ValueError(
+            "No Fill color does not have RGB values, it is a special case."
+        )
 
     def apply(self) -> None:
         open_bucket(self.calib)
@@ -478,75 +514,107 @@ class NoFillColor(Color):
 
 class RandomOnceColor(Color):
     def __init__(self, calib: CalibrationData) -> None:
+        super().__init__()
         self.calib = calib
         self.color = _random_color(calib)
 
-    def apply(self) -> None:
-        # global LAST_COLOR
-        # if LAST_COLOR == self.color:
-        #     # apply the same color again
-        #     position = (self.calib.bx - 20, self.calib.by)
-        # else:
-        #     # change color
-        #     open_bucket(self.calib)
-        #     position = color_coords(self.calib, self.color)
+    def rgb(self) -> "tuple[int, int, int]":
+        """Return the RGB values of the color."""
+        raise NotImplementedError(
+            "We don't have the lookup table for RGB values for the standard colors yet"
+        )
 
-        # _click(*position)
-        # LAST_COLOR = self.color
-        _apply(
+    def apply(self) -> None:
+        apply_or_recent(
             self.calib,
             self.color,
             lambda: _click(*color_coords(self.calib, self.color)),
         )
 
+    def indices(self) -> "tuple[int, int]":
+        """Return the coordinates of the color in the palette."""
+        return self.color
+
 
 class RandomChangingColor(Color):
     def __init__(self, calib: CalibrationData) -> None:
+        super().__init__()
         self.calib = calib
+        self.color = _random_color(calib)
 
-    def apply(self) -> None:
-        # color = _random_color(self.calib)
-        # global LAST_COLOR
-        # if LAST_COLOR == color:
-        #     # apply the same color again
-        #     position = (self.calib.bx - 20, self.calib.by)
-        # else:
-        #     # change color
-        #     open_bucket(self.calib)
-        #     position = color_coords(self.calib, color)
-        # _click(*position)
-        # LAST_COLOR = color
-        _apply(
-            self.calib,
-            _random_color(self.calib),
-            lambda: _click(*color_coords(self.calib, _random_color(self.calib))),
+    def rgb(self) -> "tuple[int, int, int]":
+        """Return the RGB values of the color."""
+        raise NotImplementedError(
+            "We don't have the lookup table for RGB values for the standard colors yet"
         )
 
+    def _apply(self) -> None:
+        _click(*color_coords(self.calib, _random_color(self.calib)))
+
+    def apply(self) -> None:
+        apply_or_recent(self.calib, self.color, self._apply)
+        self.color = _random_color(self.calib)  # re-roll
+
+    def indices(self) -> "tuple[int, int]":
+        """Return the coordinates of the color in the palette."""
+        return self.color
 
 class ArbitraryColor(Color):
     def __init__(self, calib: CalibrationData, r: int, g: int, b: int) -> None:
+        super().__init__()
         self.calib = calib
         self.r = r
         self.g = g
         self.b = b
 
+    def _apply(self) -> None:
+        _click(*self.calib.custom_color)
+        time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+        pyautogui.typewrite(f"{self.r}")
+        pyautogui.press("tab")
+        pyautogui.typewrite(f"{self.g}")
+        pyautogui.press("tab")
+        pyautogui.typewrite(f"{self.b}")
+        pyautogui.press("enter")
+        time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+
     def apply(self) -> None:
-        _apply(
-            self.calib,
-            (self.r, self.g, self.b),
-            lambda: (
-                time.sleep(pyautogui.DARWIN_CATCH_UP_TIME),
-                _click(*self.calib.custom_color),
-                time.sleep(pyautogui.DARWIN_CATCH_UP_TIME),
-                pyautogui.typewrite(f"{self.r}"),
-                pyautogui.press("tab"),
-                pyautogui.typewrite(f"{self.g}"),
-                pyautogui.press("tab"),
-                pyautogui.typewrite(f"{self.b}"),
-                pyautogui.press("enter"),
-                time.sleep(pyautogui.DARWIN_CATCH_UP_TIME),
-            ),
-        )
+        apply_or_recent(self.calib, (self.r, self.g, self.b), self._apply)
+
+
+class RadialColor(Color):
+    def __init__(
+        self,
+        calib: CalibrationData,
+        center: "tuple[int, int, int]",
+        edge: "tuple[int, int, int]",
+    ) -> None:
+        super().__init__()
+        self.calib = calib
+        self.center = center
+        self.edge = edge
+
+    def rgb(self) -> "tuple[int, int, int]":
+        r = math.sqrt(self.w**2 + self.q**2)
+        if r < 1:
+            color = (
+                int(self.center[0] * (1 - r) + self.edge[0] * r),
+                int(self.center[1] * (1 - r) + self.edge[1] * r),
+                int(self.center[2] * (1 - r) + self.edge[2] * r),
+            )
+
+        else:
+            # If the radius is greater than 1, just apply the edge color
+            color = self.edge
+
+        return color
+
+    def _apply(self) -> None:
+        ArbitraryColor(self.calib, *self.rgb())._apply()
+
+    def apply(self) -> None:
+        """Apply a radial color based on the center and edge coordinates."""
+        apply_or_recent(self.calib, self.rgb(), self._apply)
 
 
 def reset_all_colors(calib: CalibrationData):
@@ -692,6 +760,30 @@ def pattern_column_row_lights(
     else:
         raise NotImplementedError
 
+def ij_2_uv(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
+    u = i / (calib.n_cols - 1) * 2 - 1
+    v = j / (calib.n_rows - 1) * 2 - 1
+    return (u, v)
+
+
+def ij_2_wq(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
+    # w/q coordinates are just like u/v, but the color is in screen coordinates,
+    # not image coordinates. This means that the circles are drawn correctly
+    cell_width = (calib.x2 - calib.x1) / (calib.n_cols - 1)
+    cell_height = (calib.y2 - calib.y1) / (calib.n_rows - 1)
+    cell_area_width = calib.n_cols * cell_width
+    cell_area_height = calib.n_rows * cell_height
+    aspect_ratio = cell_area_width / cell_area_height
+    if aspect_ratio > 1:
+        # Wider than tall
+        w = (i / (calib.n_cols - 1) * 2 - 1) * aspect_ratio
+        q = j / (calib.n_rows - 1) * 2 - 1
+    else:
+        # Taller than wide
+        w = i / (calib.n_cols - 1) * 2 - 1
+        q = (j / (calib.n_rows - 1) * 2 - 1) / aspect_ratio
+    return (w, q)
+
 
 def pattern_cells(
     calib: CalibrationData,
@@ -704,21 +796,8 @@ def pattern_cells(
 
     def _probability(i: int, j: int, n_cols: int, n_rows: int) -> float:
         # potability based on a gaussian distribution centered in the middle of the grid
-        center_x = n_cols / 2
-        center_y = n_rows / 2
-        sigma_x = n_cols / 4
-        sigma_y = n_rows / 4
-        return (
-            1
-            / (2 * 3.14159 * sigma_x * sigma_y)
-            * 2.71828
-            ** (
-                -(
-                    ((i - center_x) ** 2) / (2 * sigma_x**2)
-                    + ((j - center_y) ** 2) / (2 * sigma_y**2)
-                )
-            )
-        )
+        w, q = ij_2_wq(calib, i, j)
+        return math.exp(-((w**2 + q**2) / (2 * (0.5**2))))
 
     coords_with_probs = deque(
         (i, j, _probability(i, j, calib.n_cols, calib.n_rows))
@@ -751,6 +830,8 @@ def pattern_cells(
 
     for i, j in coords:
         _click(*cell_coords(calib, (i, j)))
+        color.uv(*ij_2_uv(calib, i, j))
+        color.wq(*ij_2_wq(calib, i, j))
         color.apply()
         pyautogui.sleep(sleep_time)
 
@@ -770,15 +851,23 @@ def run(calib: CalibrationData):
     # ArbitraryColor(calib, 255, 0, 0).apply()
 
     # while True:
-    #     inward_spiral(calib, random_color(calib))
-    #     outward_spiral(calib, random_color(calib))
+    #     inward_spiral(calib, RandomChangingColor(calib))
+    #     outward_spiral(calib, RandomOnceColor(calib))
 
-    # pattern_cells(calib, RandomColor(calib), sleep_time=0.0)
-    # pattern_cells(calib, RandomOnceColor(calib), sleep_time=0.0)
+    # pattern_cells(calib, RandomChangingColor(calib), sleep_time=0.0)
+    pattern_cells(
+        calib,
+        RadialColor(
+            calib,
+            (255, 0, 0),  # red
+            (128, 128, 128),  # gray
+        ),
+        sleep_time=0.0,
+    )
 
     # Test pattern
     # pattern_palette_test_1(calib)
-    pattern_palette_test_2(calib)
+    # pattern_palette_test_2(calib)
 
     # column_lights(calib, random_color(calib))
     # reset_all_colors(calib)
