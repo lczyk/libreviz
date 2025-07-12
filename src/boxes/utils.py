@@ -1,4 +1,3 @@
-from itertools import tee
 from typing import TYPE_CHECKING, overload
 
 import pyautogui
@@ -8,15 +7,13 @@ if TYPE_CHECKING:
 else:
     TypeAlias = str  # type: ignore[assignment]
 
-if __package__ is None or __package__ == "":
-    from calibrate import CalibrationData
-    from patched_click import click
-else:
-    from .calibrate import CalibrationData
-    from .patched_click import click
+from .calibrate import CalibrationData
+from .patched_click import click
+
+Coord: TypeAlias = "tuple[int, int] | tuple[str, str | int] | str"
 
 
-def _cell_coords_i(calib: CalibrationData, c: tuple[int, int]):
+def _cell_coords_i(calib: CalibrationData, c: tuple[int, int]) -> tuple[float, float]:
     """Move to the specified cell in the grid by index."""
     width = calib.x2 - calib.x1
     height = calib.y2 - calib.y1
@@ -27,7 +24,7 @@ def _cell_coords_i(calib: CalibrationData, c: tuple[int, int]):
     return (x, y)
 
 
-def _cell_coords_x(calib: CalibrationData, c: "tuple[str, str | int]"):
+def _cell_coords_x(calib: CalibrationData, c: "tuple[str, str | int]") -> tuple[float, float]:
     """Move to the specified cell in the grid by column letter and row number."""
     col, row = c
     col_index = ord(col.upper()) - ord("A")
@@ -39,44 +36,41 @@ def _cell_coords_x(calib: CalibrationData, c: "tuple[str, str | int]"):
     return _cell_coords_i(calib, (col_index, row_index))
 
 
-def _cell_coords_x2(calib: CalibrationData, a: str):
+def _cell_coords_x2(calib: CalibrationData, a: str) -> tuple[float, float]:
     """Move to the specified cell in the grid by column letter and row number."""
     a, b = a.split(":")
     return _cell_coords_x(calib, (a, b))
 
 
 @overload
-def cell_coords(calib: CalibrationData, c: tuple[int, int]) -> None:
+def cell_coords(calib: CalibrationData, c: tuple[int, int]) -> tuple[float, float]:
     """Move to the specified cell in the grid by index."""
 
 
 @overload
-def cell_coords(calib: CalibrationData, c: "tuple[str, str | int]") -> None:
+def cell_coords(calib: CalibrationData, c: "tuple[str, str | int]") -> tuple[float, float]:
     """Move to the specified cell in the grid by column letter and row number."""
 
 
 @overload
-def cell_coords(calib: CalibrationData, c: str) -> None:
+def cell_coords(calib: CalibrationData, c: str) -> tuple[float, float]:
     """Move to the specified cell in the grid by column letter and row number in a string format."""
 
 
-Coord: TypeAlias = "tuple[int, int] | tuple[str, str | int] | str"
-
-
-def cell_coords(calib: CalibrationData, c: Coord) -> tuple[int, int]:
+def cell_coords(calib: CalibrationData, c: Coord) -> tuple[float, float]:
     """Move to the specified cell in the grid."""
     if isinstance(c, str):
         return _cell_coords_x2(calib, c)
     elif isinstance(c, tuple):
         if all(isinstance(i, int) for i in c):
-            return _cell_coords_i(calib, c)
+            return _cell_coords_i(calib, c)  # type: ignore
         else:
-            return _cell_coords_x(calib, c)
+            return _cell_coords_x(calib, c)  # type: ignore
     else:
         raise TypeError(f"Invalid type for cell: {type(c)}")
 
 
-def select_range(calib: CalibrationData, c1: Coord, c2: Coord):
+def select_range(calib: CalibrationData, c1: Coord, c2: Coord) -> None:
     """Select a range of cells from (col1, row1) to (col2, row2)."""
     click(*cell_coords(calib, c1))
     if c2 != c1:
@@ -85,7 +79,7 @@ def select_range(calib: CalibrationData, c1: Coord, c2: Coord):
         pyautogui.keyUp("shift")
 
 
-def select_column_index(calib: CalibrationData, col: "int | str"):
+def select_column_index(calib: CalibrationData, col: "int | str") -> None:
     """Select the entire column."""
     if isinstance(col, int):
         col = chr(ord("A") + col)
@@ -101,7 +95,7 @@ def select_column_index(calib: CalibrationData, col: "int | str"):
     click(*coords)
 
 
-def select_row_index(calib: CalibrationData, row: int):
+def select_row_index(calib: CalibrationData, row: int) -> None:
     """Select the entire row."""
     if not isinstance(row, int):
         raise TypeError(f"Invalid type for row: {type(row)}")
@@ -113,10 +107,3 @@ def select_row_index(calib: CalibrationData, row: int):
         calib.first_row[1] + row * calib.cell_height,
     )
     click(*coords)
-
-
-def pairwise(iterable):
-    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
-    a, b = tee(iterable)
-    next(b, None)
-    return zip(a, b)

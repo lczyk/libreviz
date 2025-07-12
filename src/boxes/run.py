@@ -1,41 +1,29 @@
 import math
 import random
 import time
-from typing import TYPE_CHECKING
+from itertools import pairwise
 
 import pyautogui
 
-if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
-else:
-    TypeAlias = str  # type: ignore[assignment]
-
-if __package__ is None or __package__ == "":
-    import colors
-    import text
-    import utils
-    from calibrate import CalibrationData
-    from patched_click import click
-else:
-    from . import colors, text, utils
-    from .calibrate import CalibrationData
-    from .patched_click import click
+from . import colors, text, utils
+from .calibrate import CalibrationData
+from .patched_click import click
 
 
-def inward_spiral(calib: CalibrationData, color: colors.Color):
-    nodes = "A:1,S:1,S:52,A:52,A:3,Q:3,Q:50,C:50,C:5,O:5,O:48,E:48,E:7,M:7,M:46,G:46,G:9,K:9,K:44,I:44,I:11"
-    nodes = nodes.split(",")
+def inward_spiral(calib: CalibrationData, color: colors.Color) -> None:
+    _nodes = "A:1,S:1,S:52,A:52,A:3,Q:3,Q:50,C:50,C:5,O:5,O:48,E:48,E:7,M:7,M:46,G:46,G:9,K:9,K:44,I:44,I:11"
+    nodes = _nodes.split(",")
 
-    for n1, n2 in utils.pairwise(nodes):
+    for n1, n2 in pairwise(nodes):
         utils.select_range(calib, n1, n2)
         color.apply()
 
 
-def outward_spiral(calib: CalibrationData, color: colors.Color):
-    nodes = "J:43,J:10,H:10,H:45,L:45,L:8,F:8,F:47,N:47,N:6,D:6,D:49,P:49,P:4,B:4,B:51,R:51,R:2,A:2"
-    nodes = nodes.split(",")
+def outward_spiral(calib: CalibrationData, color: colors.Color) -> None:
+    _nodes = "J:43,J:10,H:10,H:45,L:45,L:8,F:8,F:47,N:47,N:6,D:6,D:49,P:49,P:4,B:4,B:51,R:51,R:2,A:2"
+    nodes = _nodes.split(",")
 
-    for n1, n2 in utils.pairwise(nodes):
+    for n1, n2 in pairwise(nodes):
         utils.select_range(calib, n1, n2)
         color.apply()
 
@@ -43,19 +31,19 @@ def outward_spiral(calib: CalibrationData, color: colors.Color):
 ################################################################################
 
 
-def pattern_palette_test_1(calib: CalibrationData):
-    for i in range(calib.n_color_cols):
-        for j in range(calib.n_color_rows):
-            print(f"Applying color ({i}, {j})")
+def pattern_palette_test_1(calib: CalibrationData) -> None:
+    for j in range(calib.n_color_rows):
+        for i in range(calib.n_color_cols):
+            # print(f"Applying color ({i}, {j})")
             utils.select_range(
                 calib,
                 (chr(ord("A") + i), 4 * j + 4),
                 (chr(ord("A") + i), 4 * j + 4 + 3),
             )
-            colors.StandardColor(calib, (i, j)).apply()
+            colors.StandardColor(calib, i, j).apply()
 
 
-def pattern_palette_test_2(calib: CalibrationData):
+def pattern_palette_test_2(calib: CalibrationData) -> None:
     """Apply colors in a pattern to the palette."""
 
     def _xy_to_rgb(x: float, y: float) -> tuple[int, int, int]:
@@ -86,7 +74,7 @@ def pattern_column_lights(
     calib: CalibrationData,
     color: colors.Color,
     sleep_time: float = 0.1,
-):
+) -> None:
     """Apply a color to each cell in a column."""
     column_indices = [i for i in range(calib.n_cols)]
     random.shuffle(column_indices)
@@ -101,7 +89,7 @@ def pattern_row_lights(
     calib: CalibrationData,
     color: colors.Color,
     sleep_time: float = 0.1,
-):
+) -> None:
     """Apply a color to each cell in a row."""
     row_indices = [i for i in range(calib.n_rows)]
     random.shuffle(row_indices)
@@ -117,7 +105,7 @@ def pattern_column_row_lights(
     col_color: colors.Color,
     row_color: colors.Color,
     sleep_time: float = 0.1,
-):
+) -> None:
     """Apply a color to each cell in a column and then in a row."""
     column_indices = [i for i in range(calib.n_cols)]
     random.shuffle(column_indices)
@@ -174,7 +162,7 @@ def pattern_cells(
     calib: CalibrationData,
     color: colors.Color,
     sleep_time: float = 0.1,
-):
+) -> None:
     """Apply a color to each cell in the grid."""
     # coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
     # random.shuffle(coords)
@@ -185,8 +173,8 @@ def pattern_cells(
         return math.exp(-((w**2 + q**2) / (2 * (0.5**2))))
 
     def _color(i: int, j: int) -> tuple[int, int, int]:
-        color.uv(*ij_2_uv(calib, i, j))
-        color.wq(*ij_2_wq(calib, i, j))
+        # color.uv(*ij_2_uv(calib, i, j))
+        # color.wq(*ij_2_wq(calib, i, j))
         return color.rgb()
 
     coords_with_probs_and_color = [
@@ -198,7 +186,7 @@ def pattern_cells(
         return math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2)
 
     # group by color
-    coords_with_probs = {}
+    coords_with_probs: dict[tuple[int, int, int], list[tuple[int, int, float]]] = {}
     distance_tol = 10
     for i, j, prob, color_rgb in coords_with_probs_and_color:
         # Check if the color is already in the dictionary
@@ -251,6 +239,7 @@ def pattern_cells(
         just_coords = [(i, j) for i, j, _ in coords]
         for i, j in just_coords:
             click(*utils.cell_coords(calib, (i, j)))
+            # print(f"Applying color {color_rgb} to cell ({i}, {j})")
             colors.ArbitraryColor(calib, *color_rgb).apply()
             pyautogui.sleep(sleep_time)
 
@@ -258,8 +247,7 @@ def pattern_cells(
 ################################################################################
 
 
-def run(calib: CalibrationData):
-    colors.init_last_color(calib)
+def run(calib: CalibrationData) -> None:
     colors.reset_all_colors(calib)
     text.reset_all_cell_contents(calib)
     time.sleep(0.1)
@@ -277,17 +265,19 @@ def run(calib: CalibrationData):
     # pattern_cells(calib, RandomChangingColor(calib), sleep_time=0.0)
     pattern_cells(
         calib,
-        colors.RadialColor(
-            calib,
-            center=(255, 0, 0),  # red
-            edge=(128, 128, 128),  # gray
-            radius=1.5,
-        ),
+        # colors.RadialColor(
+        #     calib,
+        #     center=(255, 0, 0),  # red
+        #     edge=(128, 128, 128),  # gray
+        #     radius=1.5,
+        # ),
+        # colors.RandomChangingColor(calib),
+        colors.StandardColor.from_name(calib, "lime"),
         sleep_time=0.0,
     )
 
     # Test pattern
-    # pattern_palette_test_1(calib)
+    pattern_palette_test_1(calib)
     # pattern_palette_test_2(calib)
 
     # column_lights(calib, random_color(calib))

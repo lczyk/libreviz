@@ -7,10 +7,7 @@ from dataclasses import dataclass
 
 import pyautogui
 
-if __package__ is None or __package__ == "":
-    from patched_click import click
-else:
-    from .patched_click import click
+from .patched_click import click
 
 
 @dataclass(frozen=True)
@@ -43,7 +40,7 @@ class CalibrationData:
     n_color_rows: int
 
     @classmethod
-    def from_b64(cls, b64_data: str):
+    def from_b64(cls, b64_data: str) -> "CalibrationData":
         """Create an instance from base64 encoded JSON string."""
         try:
             data = json.loads(base64.b64decode(b64_data).decode())
@@ -52,7 +49,7 @@ class CalibrationData:
             print(f"Error decoding calibration data: {e}")
             raise ValueError("Invalid calibration data format.") from e
 
-    def to_b64(self):
+    def to_b64(self) -> str:
         """Convert the instance to a base64 encoded JSON string."""
         return base64.b64encode(json.dumps(self.__dict__).encode()).decode()
 
@@ -184,7 +181,11 @@ def calibrate(
     # _click(*top_left_cell)
 
     # display a message box to check whether we want to proceed
-    response = pyautogui.confirm(text="Was that correct?", title="Boxes", buttons=["Yes", "No"])
+    response = pyautogui.confirm(  # type: ignore[attr-defined]
+        text="Was that correct?",
+        title="Boxes",
+        buttons=["Yes", "No"],
+    )
 
     if response == "No":
         print("Exiting script.")

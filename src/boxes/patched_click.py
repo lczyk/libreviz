@@ -5,8 +5,8 @@ import pyautogui
 if sys.platform == "darwin":
     import time
 
-    import Quartz
-    from pyautogui._pyautogui_osx import _sendMouseEvent
+    import Quartz  # type: ignore[import-untyped]
+    from pyautogui._pyautogui_osx import _sendMouseEvent  # type: ignore[import-not-found]
 
     def click(x: float, y: float) -> None:
         _sendMouseEvent(Quartz.kCGEventLeftMouseDown, x, y, Quartz.kCGMouseButtonLeft)
