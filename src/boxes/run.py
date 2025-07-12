@@ -263,18 +263,18 @@ def run(calib: CalibrationData) -> None:
     #     outward_spiral(calib, RandomOnceColor(calib))
 
     # pattern_cells(calib, RandomChangingColor(calib), sleep_time=0.0)
-    pattern_cells(
-        calib,
-        # colors.RadialColor(
-        #     calib,
-        #     center=(255, 0, 0),  # red
-        #     edge=(128, 128, 128),  # gray
-        #     radius=1.5,
-        # ),
-        # colors.RandomChangingColor(calib),
-        colors.StandardColor.from_name(calib, "lime"),
-        sleep_time=0.0,
-    )
+    # pattern_cells(
+    #     calib,
+    #     # colors.RadialColor(
+    #     #     calib,
+    #     #     center=(255, 0, 0),  # red
+    #     #     edge=(128, 128, 128),  # gray
+    #     #     radius=1.5,
+    #     # ),
+    #     # colors.RandomChangingColor(calib),
+    #     colors.StandardColor.from_name(calib, "lime"),
+    #     sleep_time=0.0,
+    # )
 
     # Test pattern
     pattern_palette_test_1(calib)

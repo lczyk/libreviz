@@ -95,74 +95,92 @@ STANDARD_COLORS_BY_NAME: dict[ColorName, tuple[ColorIJ, ColorRGB]] = {
     "green": ((10, 1), (0, 169, 51)),
     "lime": ((11, 1), (129, 212, 26)),
     # 3rd row
+    "light_yellow_4": ((0, 2), (255, 255, 215)),
+    "light_gold_4": ((1, 2), (255, 245, 206)),
+    "light_orange_4": ((2, 2), (255, 219, 182)),
+    "light_brick_4": ((3, 2), (255, 216, 206)),
+    "light_red_4": ((4, 2), (255, 215, 215)),
+    "light_magenta_4": ((5, 2), (247, 209, 213)),
+    "light_purple_4": ((6, 2), (224, 194, 205)),
+    "light_indigo_4": ((7, 2), (222, 220, 230)),
+    "light_blue_4": ((8, 2), (222, 230, 239)),
+    "light_teal_4": ((9, 2), (222, 231, 229)),
+    "light_green_4": ((10, 2), (221, 232, 203)),
+    "light_lime_4": ((11, 2), (246, 249, 212)),
+    # 4th row
+    "light_yellow_3": ((0, 3), (255, 255, 166)),
+    "light_gold_3": ((1, 3), (255, 233, 148)),
+    "light_orange_3": ((2, 3), (255, 182, 108)),
+    "light_brick_3": ((3, 3), (255, 170, 149)),
+    "light_red_3": ((4, 3), (255, 166, 166)),
+    "light_magenta_3": ((5, 3), (236, 155, 164)),
+    "light_purple_3": ((6, 3), (191, 129, 158)),
+    "light_indigo_3": ((7, 3), (183, 179, 202)),
+    "light_blue_3": ((8, 3), (180, 199, 220)),
+    "light_teal_3": ((9, 3), (179, 202, 199)),
+    "light_green_3": ((10, 3), (175, 208, 149)),
+    "light_lime_3": ((11, 3), (232, 242, 161)),
+    # 5th row
+    "light_yellow_2": ((0, 4), (255, 255, 109)),
+    "light_gold_2": ((1, 4), (255, 222, 89)),
+    "light_orange_2": ((2, 4), (255, 151, 47)),
+    "light_brick_2": ((3, 4), (255, 123, 89)),
+    "light_red_2": ((4, 4), (255, 109, 109)),
+    "light_magenta_2": ((5, 4), (225, 97, 115)),
+    "light_purple_2": ((6, 4), (161, 70, 126)),
+    "light_indigo_2": ((7, 4), (142, 134, 174)),
+    "light_blue_2": ((8, 4), (114, 159, 207)),
+    "light_teal_2": ((9, 4), (129, 172, 166)),
+    "light_green_2": ((10, 4), (119, 188, 101)),
+    "light_lime_2": ((11, 4), (212, 234, 107)),
 }
 
-STANDARD_COLORS_BY_RGB: dict[ColorRGB, tuple[ColorName, ColorIJ]] = {}
-for name, (ij, rgb) in STANDARD_COLORS_BY_NAME.items():
-    if rgb in STANDARD_COLORS_BY_RGB:
-        raise ValueError(
-            f"Duplicate RGB value {rgb} for color {name} at indices {ij} and {STANDARD_COLORS_BY_RGB[rgb][0]}"
-        )
-    STANDARD_COLORS_BY_RGB[rgb] = (name, ij)
+def _init_standard_colors_by_rgb(
+    _in: dict[ColorName, tuple[ColorIJ, ColorRGB]],
+) -> dict[ColorRGB, tuple[ColorName, ColorIJ]]:
+    out: dict[ColorRGB, tuple[ColorName, ColorIJ]] = {}
+    for name, (ij, rgb) in _in.items():
+        if rgb in out:
+            raise ValueError(f"Duplicate RGB value {rgb} for color {name} at indices {ij} and {out[rgb][0]}")
+        out[rgb] = (name, ij)
+    return out
 
 
-max_cj, max_ci = 0, 0
-for ij, _ in STANDARD_COLORS_BY_NAME.values():
-    ci, cj = ij
-    max_cj = max(max_cj, cj)
-    max_ci = max(max_ci, ci)
+STANDARD_COLORS_BY_RGB = _init_standard_colors_by_rgb(STANDARD_COLORS_BY_NAME)
 
 
-STANDARD_COLORS_MATRIX: list[list[tuple[ColorName, ColorRGB]]] = [
-    [("no_fill", (-1, -1, -1))] * (max_ci + 1)  # Initialize with 'No Fill' color
-    for _ in range(max_cj + 1)
-]
+def _init_standard_colors_matrix(
+    _in: dict[ColorName, tuple[ColorIJ, ColorRGB]],
+) -> list[list[tuple[ColorName, ColorRGB]]]:
+    """Initialize the standard colors matrix."""
+    max_cj, max_ci = 0, 0
+    for ij, _ in _in.values():
+        ci, cj = ij
+        max_cj = max(max_cj, cj)
+        max_ci = max(max_ci, ci)
 
-for name, (ij, rgb) in STANDARD_COLORS_BY_NAME.items():
-    ci, cj = ij
-    if cj < 0 or cj > max_cj or ci < 0 or ci > max_ci:
-        raise ValueError(f"Invalid indices ({ci}, {cj}) for color {name}")
-    STANDARD_COLORS_MATRIX[cj][ci] = (name, rgb)
+    out: list[list[tuple[ColorName, ColorRGB]]] = [
+        [("no_fill", (-1, -1, -1))] * (max_ci + 1)  # Initialize with 'No Fill' color
+        for _ in range(max_cj + 1)
+    ]
 
-print(len(STANDARD_COLORS_MATRIX), "rows")
-print(len(STANDARD_COLORS_MATRIX[0]), "columns")
-print("0,0", STANDARD_COLORS_MATRIX[0][0])
-print("0,1", STANDARD_COLORS_MATRIX[0][1])
-print("1,0", STANDARD_COLORS_MATRIX[1][0])
-print("1,1", STANDARD_COLORS_MATRIX[1][1])
-print("1,11", STANDARD_COLORS_MATRIX[1][11])
+    for name, (ij, rgb) in _in.items():
+        ci, cj = ij
+        if cj < 0 or cj > max_cj or ci < 0 or ci > max_ci:
+            raise ValueError(f"Invalid indices ({ci}, {cj}) for color {name}")
+        out[cj][ci] = (name, rgb)
 
-#     [
-#         ("black", (0, 0, 0)),
-#         ("dark_gray_4", (17, 17, 17)),
-#         ("dark_gray_3", (28, 28, 28)),
-#         ("dark_gray_2", (51, 51, 51)),
-#         ("dark_gray_1", (102, 102, 102)),
-#         ("gray", (128, 128, 128)),
-#         ("light_gray_1", (153, 153, 153)),
-#         ("light_gray_2", (178, 178, 178)),
-#         ("light_gray_3", (204, 204, 204)),
-#         ("light_gray_4", (221, 221, 221)),
-#         ("light_gray_5", (238, 238, 238)),
-#         ("white", (255, 255, 255)),
-#     ],
-#     [
-#         ("yellow", (255, 255, 0)),
-#         ("gold", (255, 191, 0)),
-#         ("orange", (255, 128, 0)),
-#         ("brick:", (255, 64, 0)),
-#         ("red", (255, 0, 0)),
-#         ("magenta", (191, 0, 65)),
-#         ("purple", (128, 0, 128)),
-#         ("indigo", (85, 48, 141)),
-#         ("blue", (42, 96, 153)),
-#         ("teal", (21, 132, 102)),
-#         ("green", (0, 169, 51)),
-#         ("lime", (129, 212, 26)),
-#     ],
-#     # Add more rows as needed
-# ]
+    return out
 
+STANDARD_COLORS_MATRIX = _init_standard_colors_matrix(STANDARD_COLORS_BY_NAME)
+
+# print(len(STANDARD_COLORS_MATRIX), "rows")
+# print(len(STANDARD_COLORS_MATRIX[0]), "columns")
+# print("0,0", STANDARD_COLORS_MATRIX[0][0])
+# print("0,1", STANDARD_COLORS_MATRIX[0][1])
+# print("1,0", STANDARD_COLORS_MATRIX[1][0])
+# print("1,1", STANDARD_COLORS_MATRIX[1][1])
+# print("1,11", STANDARD_COLORS_MATRIX[1][11])
 
 class StandardColor:
     def __init__(self, calib: CalibrationData, ci: int, cj: int) -> None:
