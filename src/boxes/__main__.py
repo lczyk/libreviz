@@ -77,6 +77,27 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
+    c = ["red", "green", "blue", "yellow", "brick", "lime", "teal"]
+    # patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "red")).step_all()
+    # patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "blue")).step_all()
+
+    while True:
+        next_color_1 = c.pop(0)
+        c.append(next_color_1)
+        next_color_2 = c.pop(0)
+        c.append(next_color_2)
+
+        patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_1)).step_all()
+        patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_2)).step_all()
+
+    # p: list[patterns.Pattern] = [
+    #     patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "red")),
+    #     patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "blue")),
+    #     # patterns.PaletteTest1(calib),
+    # ]
+
+    # patterns.interweave_patterns(p)
+
     # while True:
     #     inward_spiral(calib, RandomChangingColor(calib))
     #     outward_spiral(calib, RandomOnceColor(calib))
@@ -97,7 +118,7 @@ def run(calib: CalibrationData) -> None:
 
     # Test pattern
     # pattern_palette_test_1(calib)
-    patterns.palette_test_2(calib)
+    # patterns.palette_test_2(calib)
 
     # column_lights(calib, random_color(calib))
     # reset_all_colors(calib)

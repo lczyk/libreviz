@@ -1,7 +1,7 @@
 import math
 import random
 import time
-from itertools import pairwise
+from typing import TYPE_CHECKING, Protocol, no_type_check
 
 import pyautogui
 
@@ -10,44 +10,150 @@ from .calibrate import CalibrationData
 from .patched_click import click
 
 
-def inward_spiral(calib: CalibrationData, color: colors.Color) -> None:
-    _nodes = "A:1,S:1,S:52,A:52,A:3,Q:3,Q:50,C:50,C:5,O:5,O:48,E:48,E:7,M:7,M:46,G:46,G:9,K:9,K:44,I:44,I:11"
-    nodes = _nodes.split(",")
+class Pattern(Protocol):
+    name: str
 
-    for n1, n2 in pairwise(nodes):
-        utils.select_range(calib, n1, n2)
-        color.apply()
+    def step(self) -> None:
+        """Perform a single step of the pattern."""
+        ...
+
+    def step_all(self) -> None: ...
+
+    @property
+    def n_steps(self) -> int:
+        """Return the number of steps in the pattern."""
+        ...
+
+    @property
+    def n_left(self) -> int:
+        """Return the number of steps left in the pattern."""
+        ...
 
 
-def outward_spiral(calib: CalibrationData, color: colors.Color) -> None:
-    _nodes = "J:43,J:10,H:10,H:45,L:45,L:8,F:8,F:47,N:47,N:6,D:6,D:49,P:49,P:4,B:4,B:51,R:51,R:2,A:2"
-    nodes = _nodes.split(",")
+class _PatternBase:
+    @no_type_check
+    def step_all(self) -> None:
+        """Perform all steps of the pattern."""
+        for _ in range(self.n_steps):
+            self.step()
 
-    for n1, n2 in pairwise(nodes):
-        utils.select_range(calib, n1, n2)
-        color.apply()
+    @no_type_check
+    def __len__(self) -> int:
+        """Return the number of steps in the pattern."""
+        return self.n_steps
 
 
-def palette_test_1(calib: CalibrationData) -> None:
-    for j in range(calib.n_color_rows):
-        for i in range(calib.n_color_cols):
-            # print(f"Applying color ({i}, {j})")
-            utils.select_range(
-                calib,
-                (chr(ord("A") + i), 4 * j + 4),
-                (chr(ord("A") + i), 4 * j + 4 + 1),
-            )
-            colors.StandardColor(calib, i, j).apply()
-            utils.select_range(
-                calib,
-                (chr(ord("A") + i), 4 * j + 4 + 2),
-                (chr(ord("A") + i), 4 * j + 4 + 3),
-            )
-            colors.ArbitraryColor(
-                calib,
-                *colors.StandardColor(calib, i, j).rgb(),
-                cache=False,
-            ).apply()
+class InwardSpiral(_PatternBase):
+    name = "inward_spiral"
+
+    def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
+        self.calib = calib
+        self.color = color
+        _nodes = "A:1,S:1,S:52,A:52,A:3,Q:3,Q:50,C:50,C:5,O:5,O:48,E:48,E:7,M:7,M:46,G:46,G:9,K:9,K:44,I:44,I:11"
+        self.nodes = _nodes.split(",")
+        self.i = 0
+
+    def step(self) -> None:
+        n1, n2 = self.nodes[self.i], self.nodes[self.i + 1]
+        utils.select_range(self.calib, n1, n2)
+        self.color.apply()
+        self.i += 1
+
+    @property
+    def n_steps(self) -> int:
+        return len(self.nodes) - 1
+
+    @property
+    def n_left(self) -> int:
+        return len(self.nodes) - 1 - self.i
+
+
+if TYPE_CHECKING:
+    _inward_spiral: Pattern = InwardSpiral.__new__(InwardSpiral)
+
+
+class OutwardSpiral(_PatternBase):
+    name = "outward_spiral"
+
+    def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
+        self.calib = calib
+        self.color = color
+        _nodes = "J:43,J:10,H:10,H:45,L:45,L:8,F:8,F:47,N:47,N:6,D:6,D:49,P:49,P:4,B:4,B:51,R:51,R:2,A:2"
+        self.nodes = _nodes.split(",")
+        self.i = 0
+
+    def step(self) -> None:
+        n1, n2 = self.nodes[self.i], self.nodes[self.i + 1]
+        utils.select_range(self.calib, n1, n2)
+        self.color.apply()
+        self.i += 1
+
+    @property
+    def n_steps(self) -> int:
+        return len(self.nodes) - 1
+
+    @property
+    def n_left(self) -> int:
+        return len(self.nodes) - 1 - self.i
+
+
+if TYPE_CHECKING:
+    _outward_spiral: Pattern = OutwardSpiral.__new__(OutwardSpiral)
+
+
+# def palette_test_1(calib: CalibrationData) -> None:
+#     for j in range(calib.n_color_rows):
+#         for i in range(calib.n_color_cols):
+#             # print(f"Applying color ({i}, {j})")
+
+
+class PaletteTest1(_PatternBase):
+    name = "palette_test_1"
+
+    def __init__(self, calib: CalibrationData) -> None:
+        self.calib = calib
+        self.i = 0
+        self.j = 0
+
+    def step(self) -> None:
+        calib = self.calib
+        i, j = self.i, self.j
+        utils.select_range(
+            calib,
+            (chr(ord("A") + i), 4 * j + 4),
+            (chr(ord("A") + i), 4 * j + 4 + 1),
+        )
+        colors.StandardColor(calib, i, j).apply()
+        utils.select_range(
+            calib,
+            (chr(ord("A") + i), 4 * j + 4 + 2),
+            (chr(ord("A") + i), 4 * j + 4 + 3),
+        )
+        colors.ArbitraryColor(
+            calib,
+            *colors.StandardColor(calib, i, j).rgb(),
+            cache=False,
+        ).apply()
+
+        # Update indices for the next step
+        self.i += 1
+        if self.i >= calib.n_color_cols:
+            self.i = 0
+            self.j += 1
+            if self.j >= calib.n_color_rows:
+                self.j = 0
+
+    @property
+    def n_steps(self) -> int:
+        return self.calib.n_color_rows * self.calib.n_color_cols
+
+    @property
+    def n_left(self) -> int:
+        return self.calib.n_color_rows * self.calib.n_color_cols - (self.j * self.calib.n_color_cols + self.i)
+
+
+if TYPE_CHECKING:
+    _palette_test_1: Pattern = PaletteTest1.__new__(PaletteTest1)
 
 
 def palette_test_2(calib: CalibrationData) -> None:
@@ -219,3 +325,32 @@ def pattern_cells(
             # print(f"Applying color {color_rgb} to cell ({i}, {j})")
             colors.ArbitraryColor(calib, *color_rgb).apply()
             pyautogui.sleep(sleep_time)
+
+
+def interweave_patterns(patterns: list[Pattern]) -> None:
+    """Run all patterns in the list, interleaving their steps. Find out how many steps each pattern has,
+    and scale the number of steps taken by each pattern such that they all finish roughtly at the same time."""
+    n_steps = [p.n_steps for p in patterns]
+    print(f"Number of steps in each pattern: {n_steps}")
+    # steps_taken = [0] * len(patterns)
+
+    # the pattern with minimum number of steps will determine the number of blocks of steps taken by each pattern
+    min_steps = min(n_steps)
+
+    n_blocks = [math.ceil(n / min_steps) for n in n_steps]
+    print(f"Number of blocks for each pattern: {n_blocks}")
+    while not all(n == 0 for n in n_blocks):
+        # find the pattern with the maximum number of blocks left
+        max_index = n_blocks.index(max(n_blocks))
+
+        # step that pattern the required number of times
+        for _ in range(
+            min(
+                min_steps,
+                patterns[max_index].n_left,
+            )
+        ):
+            patterns[max_index].step()
+        n_blocks[max_index] -= 1
+
+    print("All patterns finished stepping.")
