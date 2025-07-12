@@ -3,16 +3,10 @@ import os
 import sys
 import time
 from itertools import tee
-from typing import TYPE_CHECKING, overload
-
-import pyautogui
-
-if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
-else:
-    TypeAlias = str  # type: ignore[assignment]
+from typing import Any, TypeAlias, overload
 
 import eject_button
+import pyautogui
 
 eject_button.arm()
 
@@ -185,7 +179,7 @@ def reset_all_cell_contents(calib: CalibrationData):
     pyautogui.press("enter")
 
 
-def pairwise(iterable):
+def pairwise(iterable) -> zip[tuple[Any, Any]]:
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
     a, b = tee(iterable)
     next(b, None)
