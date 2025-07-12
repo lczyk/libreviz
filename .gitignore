@@ -1,5 +1,7 @@
 .~lock.document.ods#
 vid
 .venv
+.ruff_cache
+.mypy_cache
 
 __pycache__
