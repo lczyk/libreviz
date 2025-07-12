@@ -1,4 +1,5 @@
 .~lock.document.ods#
+*.ods
 vid
 .venv
 .ruff_cache
