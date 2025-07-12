@@ -1,3 +1,4 @@
+import time
 from typing import TYPE_CHECKING, overload
 
 import pyautogui
@@ -74,6 +75,8 @@ def select_range(calib: CalibrationData, c1: Coord, c2: Coord) -> None:
     """Select a range of cells from (col1, row1) to (col2, row2)."""
     click(*cell_coords(calib, c1))
     if c2 != c1:
+        # sometime, rarely, the shift lands before the click
+        time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
         pyautogui.keyDown("shift")
         click(*cell_coords(calib, c2))
         pyautogui.keyUp("shift")

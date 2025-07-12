@@ -38,9 +38,19 @@ def pattern_palette_test_1(calib: CalibrationData) -> None:
             utils.select_range(
                 calib,
                 (chr(ord("A") + i), 4 * j + 4),
-                (chr(ord("A") + i), 4 * j + 4 + 3),
+                (chr(ord("A") + i), 4 * j + 4 + 1),
             )
             colors.StandardColor(calib, i, j).apply()
+            utils.select_range(
+                calib,
+                (chr(ord("A") + i), 4 * j + 4 + 2),
+                (chr(ord("A") + i), 4 * j + 4 + 3),
+            )
+            colors.ArbitraryColor(
+                calib,
+                *colors.StandardColor(calib, i, j).rgb(),
+                cache=False,
+            ).apply()
 
 
 def pattern_palette_test_2(calib: CalibrationData) -> None:
