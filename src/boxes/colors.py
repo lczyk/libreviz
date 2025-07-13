@@ -258,15 +258,194 @@ def _init_standard_colors_matrix(
 
 STANDARD_COLORS_MATRIX = _init_standard_colors_matrix(STANDARD_COLORS_BY_NAME)
 
-# print(len(STANDARD_COLORS_MATRIX), "rows")
-# print(len(STANDARD_COLORS_MATRIX[0]), "columns")
-# print("0,0", STANDARD_COLORS_MATRIX[0][0])
-# print("0,1", STANDARD_COLORS_MATRIX[0][1])
-# print("1,0", STANDARD_COLORS_MATRIX[1][0])
-# print("1,1", STANDARD_COLORS_MATRIX[1][1])
-# print("1,11", STANDARD_COLORS_MATRIX[1][11])
+# greens = deque(
+#         [
+#             "light_green_4",
+#             "light_green_3",
+#             "light_green_2",
+#             "light_green_1",
+#             "green",
+#             "dark_green_1",
+#             "dark_green_2",
+#             "dark_green_3",
+#             "dark_green_4",
+#         ]
+#     )
 
+#     golds = deque(
+#         [
+#             "light_gold_4",
+#             "light_gold_3",
+#             "light_gold_2",
+#             "light_gold_1",
+#             "gold",
+#             "dark_gold_1",
+#             "dark_gold_2",
+#             "dark_gold_3",
+#             "dark_gold_4",
+#         ]
+#     )
 
+YELLOWS: list[ColorName] = [
+    "light_yellow_4",
+    "light_yellow_3",
+    "light_yellow_2",
+    "light_yellow_1",
+    "yellow",
+    "dark_yellow_1",
+    "dark_yellow_2",
+    "dark_yellow_3",
+    "dark_yellow_4",
+]
+
+GOLDS: list[ColorName] = [
+    "light_gold_4",
+    "light_gold_3",
+    "light_gold_2",
+    "light_gold_1",
+    "gold",
+    "dark_gold_1",
+    "dark_gold_2",
+    "dark_gold_3",
+    "dark_gold_4",
+]
+
+ORANGES: list[ColorName] = [
+    "light_orange_4",
+    "light_orange_3",
+    "light_orange_2",
+    "light_orange_1",
+    "orange",
+    "dark_orange_1",
+    "dark_orange_2",
+    "dark_orange_3",
+    "dark_orange_4",
+]
+
+BRICKS: list[ColorName] = [
+    "light_brick_4",
+    "light_brick_3",
+    "light_brick_2",
+    "light_brick_1",
+    "brick",
+    "dark_brick_1",
+    "dark_brick_2",
+    "dark_brick_3",
+    "dark_brick_4",
+]
+
+REDS: list[ColorName] = [
+    "light_red_4",
+    "light_red_3",
+    "light_red_2",
+    "light_red_1",
+    "red",
+    "dark_red_1",
+    "dark_red_2",
+    "dark_red_3",
+    "dark_red_4",
+]
+
+MAGENTAS: list[ColorName] = [
+    "light_magenta_4",
+    "light_magenta_3",
+    "light_magenta_2",
+    "light_magenta_1",
+    "magenta",
+    "dark_magenta_1",
+    "dark_magenta_2",
+    "dark_magenta_3",
+    "dark_magenta_4",
+]
+
+PURPLES: list[ColorName] = [
+    "light_purple_4",
+    "light_purple_3",
+    "light_purple_2",
+    "light_purple_1",
+    "purple",
+    "dark_purple_1",
+    "dark_purple_2",
+    "dark_purple_3",
+    "dark_purple_4",
+]
+
+INDIGOS: list[ColorName] = [
+    "light_indigo_4",
+    "light_indigo_3",
+    "light_indigo_2",
+    "light_indigo_1",
+    "indigo",
+    "dark_indigo_1",
+    "dark_indigo_2",
+    "dark_indigo_3",
+    "dark_indigo_4",
+]
+
+BLUES: list[ColorName] = [
+    "light_blue_4",
+    "light_blue_3",
+    "light_blue_2",
+    "light_blue_1",
+    "blue",
+    "dark_blue_1",
+    "dark_blue_2",
+    "dark_blue_3",
+    "dark_blue_4",
+]
+
+TEALS: list[ColorName] = [
+    "light_teal_4",
+    "light_teal_3",
+    "light_teal_2",
+    "light_teal_1",
+    "teal",
+    "dark_teal_1",
+    "dark_teal_2",
+    "dark_teal_3",
+    "dark_teal_4",
+]
+
+GREENS: list[ColorName] = [
+    "light_green_4",
+    "light_green_3",
+    "light_green_2",
+    "light_green_1",
+    "green",
+    "dark_green_1",
+    "dark_green_2",
+    "dark_green_3",
+    "dark_green_4",
+]
+
+LIMES: list[ColorName] = [
+    "light_lime_4",
+    "light_lime_3",
+    "light_lime_2",
+    "light_lime_1",
+    "lime",
+    "dark_lime_1",
+    "dark_lime_2",
+    "dark_lime_3",
+    "dark_lime_4",
+]
+
+GROUPS: dict[str, list[ColorName]] = {
+    "yellow": YELLOWS,
+    "gold": GOLDS,
+    "orange": ORANGES,
+    "brick": BRICKS,
+    "red": REDS,
+    "magenta": MAGENTAS,
+    "purple": PURPLES,
+    "indigo": INDIGOS,
+    "blue": BLUES,
+    "teal": TEALS,
+    "green": GREENS,
+    "lime": LIMES,
+}
+
+################################################################################
 class StandardColor:
     def __init__(self, calib: CalibrationData, ci: int, cj: int) -> None:
         super().__init__()

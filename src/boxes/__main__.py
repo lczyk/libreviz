@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import time
+from collections import deque
 
 import pyautogui
 
@@ -85,20 +86,30 @@ def run(calib: CalibrationData) -> None:
     #     next_color_2 = c.pop(0)
     #     c.append(next_color_2)
 
-    #     patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_1)).step_all()
+    # for step in patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "dark_lime_1")).all_steps():
+    #     step()
     #     patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_2)).step_all()
 
-    # p: list[patterns.Pattern] = [
-    #     # patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "light_red_1")),
-    #     # patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "light_blue_1")),
-    #     patterns.ColumnLights(calib, colors.StandardColor.from_name(calib, "light_gold_1")),
-    #     patterns.RowLights(calib, colors.StandardColor.from_name(calib, "dark_lime_1")),
-    # ]
+    c1 = deque(colors.TEALS)
+    c2 = deque(colors.GOLDS)
 
-    # patterns.interweave_patterns(p)
+    while True:
+        this_c1 = c1.popleft()
+        c1.append(this_c1)
+        this_c2 = c2.popleft()
+        c2.append(this_c2)
+
+        p: list[patterns.Pattern] = [
+            # patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "light_red_1")),
+            # patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "light_blue_1")),
+            patterns.ColumnLights(calib, colors.StandardColor.from_name(calib, this_c2)),
+            patterns.RowLights(calib, colors.StandardColor.from_name(calib, this_c1)),
+        ]
+
+        patterns.interweave_patterns(p)
 
     # patterns.PaletteTest1(calib).step_all()
-    patterns.PaletteTest2(calib).step_all()
+    # patterns.PaletteTest2(calib).step_all()
     # pattern_cells(calib, RandomChangingColor(calib), sleep_time=0.0)
     # pattern_cells(
     #     calib,
