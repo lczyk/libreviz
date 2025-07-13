@@ -503,6 +503,63 @@ class GaussianCells(_PatternBase, _1DMixin):
 if TYPE_CHECKING:
     _gaussian_cells: Pattern = GaussianCells.__new__(GaussianCells)
 
+
+class Boxes(_PatternBase, _1DMixin):
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: colors.Color,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+
+        def _all_covered(cells_map: list[list[bool]]) -> bool:
+            return all(all(row) for row in cells_map)
+
+        def _random_uncovered_cell(cells_map: list[list[bool]]) -> tuple[int, int]:
+            uncovered_cells: list[tuple[int, int]] = []
+            for i in range(calib.n_cols):
+                for j in range(calib.n_rows):
+                    if not cells_map[i][j]:
+                        uncovered_cells.extend([(i, j)])
+            if not uncovered_cells:
+                raise ValueError("No uncovered cells left.")
+            return random.choice(uncovered_cells)
+
+        def _mark_cells_as_covered(cells_map: list[list[bool]], i1: int, j1: int, i2: int, j2: int) -> None:
+            print(f"Marking cells from ({i1}, {j1}) to ({i2}, {j2}) as covered")
+            r1 = range(i1, i2 + 1) if i1 < i2 else range(i2, i1 + 1)
+            r2 = range(j1, j2 + 1) if j1 < j2 else range(j2, j1 + 1)
+            for i in r1:
+                for j in r2:
+                    cells_map[i][j] = True
+
+        cells_map: list[list[bool]] = [[False] * calib.n_rows for _ in range(calib.n_cols)]
+        self.boxes: list[tuple[tuple[int, int], tuple[int, int]]] = []
+
+        while not _all_covered(cells_map):
+            i1, j1 = _random_uncovered_cell(cells_map)
+            i2, j2 = _random_uncovered_cell(cells_map)
+            self.boxes.append(((i1, j1), (i2, j2)))
+            _mark_cells_as_covered(cells_map, i1, j1, i2, j2)
+
+        super().__init__(len(self.boxes))
+        self.reset()
+
+    def step(self) -> PatternStep:
+        (i1, j1), (i2, j2) = self.boxes[self.i]
+
+        def _step() -> None:
+            utils.select_range(
+                self.calib,
+                (chr(ord("A") + i1), j1 + 1),
+                (chr(ord("A") + i2), j2 + 1),
+            )
+            self.color.apply()
+
+        return _step
+
+
 ################################################################################
 
 

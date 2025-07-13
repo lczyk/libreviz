@@ -493,17 +493,50 @@ if TYPE_CHECKING:
     _no_fill_color: Color = NoFillColor.__new__(NoFillColor)
 
 
-def _random_color_ij(calib: CalibrationData) -> ColorIJ:
-    random_color_row = random.randint(0, calib.n_color_rows - 1)
-    random_color_col = random.randint(0, calib.n_color_cols - 1)
-    return random_color_col, random_color_row
+def _random_color_ij(
+    calib: CalibrationData,
+    *,
+    avoid_dark: bool = True,
+    avoid_white: bool = True,
+) -> ColorIJ:
+    # all_color_indices = [(ci, cj) for cj in range(calib.n_color_rows) for ci in range(calib.n_color_cols)]
+    to_sample = list(STANDARD_COLORS_BY_NAME.keys())
+
+    if avoid_white:
+        # Remove the white color (last color in the first row)
+        to_sample.remove("white")
+
+    if avoid_dark:
+
+        def _is_dark_color(color_name: ColorName) -> bool:
+            """Check if the color is considered dark."""
+            if color_name in (
+                "black",
+                "dark_gray_3",
+                "dark_gray_2",
+            ):
+                return True
+
+            return bool(color_name.startswith("dark_") and color_name.endswith("_4"))
+
+        to_sample = [c for c in to_sample if not _is_dark_color(c)]
+
+    # Randomly select a color from the remaining colors
+    sampled_name = random.choice(to_sample)
+    sampled_ij = STANDARD_COLORS_BY_NAME[sampled_name][0]
+    return sampled_ij
 
 
 class RandomOnceColor(Color):
-    def __init__(self, calib: CalibrationData) -> None:
+    def __init__(
+        self,
+        calib: CalibrationData,
+        *,
+        avoid_dark: bool = True,
+    ) -> None:
         super().__init__()
         self.calib = calib
-        self.color = _random_color_ij(calib)
+        self.color = _random_color_ij(calib, avoid_dark=avoid_dark)
 
     def rgb(self) -> "tuple[int, int, int]":
         """Return the RGB values of the color."""
@@ -526,21 +559,27 @@ if TYPE_CHECKING:
 
 
 class RandomChangingColor(Color):
-    def __init__(self, calib: CalibrationData) -> None:
+    def __init__(
+        self,
+        calib: CalibrationData,
+        *,
+        avoid_dark: bool = True,
+    ) -> None:
         super().__init__()
         self.calib = calib
-        self.color_ij = _random_color_ij(calib)
+        self.color_ij = _random_color_ij(calib, avoid_dark=avoid_dark)
+        self.avoid_dark = avoid_dark
 
     def rgb(self) -> "tuple[int, int, int]":
         """Return the RGB values of the color."""
         return STANDARD_COLORS_MATRIX[self.color_ij[1]][self.color_ij[0]][1]
 
     def _apply(self) -> None:
-        click(*standard_color_coords(self.calib, _random_color_ij(self.calib)))
+        click(*standard_color_coords(self.calib, self.color_ij))
 
     def apply(self) -> None:
         apply_or_recent(self.calib, self.rgb(), self._apply)
-        self.color_ij = _random_color_ij(self.calib)  # re-roll
+        self.color_ij = _random_color_ij(self.calib, avoid_dark=self.avoid_dark)
 
     def indices(self) -> "tuple[int, int]":
         """Return the coordinates of the color in the palette."""
