@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from collections import deque
+from typing import Literal
 
 import pyautogui
 
@@ -78,11 +79,15 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
-    patterns.Icicles(
-        calib,
-        colors.StandardColor.from_name(calib, "light_blue_1"),
-        segment_size=10,
-    ).step_all()
+    dc: list[tuple[Literal["down", "up", "left", "right"], str]] = [
+        ("down", "light_brick_1"),
+        ("up", "light_lime_1"),
+        ("left", "light_indigo_1"),
+        ("right", "light_gold_1"),
+    ]
+    p: list[patterns.Pattern] = [patterns.Icicles(calib, d, colors.StandardColor.from_name(calib, c)) for d, c in dc]
+
+    patterns.interweave_patterns(p)
 
     sys.exit()
 

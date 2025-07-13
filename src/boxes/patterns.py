@@ -567,53 +567,101 @@ class Icicles(_1DBase, _PatternBase):
     def __init__(
         self,
         calib: CalibrationData,
-        # direction: Literal["up", "down", "left", "right"],
+        direction: Literal["up", "down", "left", "right"],
         color: colors.Color,
-        segment_size: int = 3,
+        segment_size: int = 8,
     ) -> None:
         self.calib = calib
         self.color = color
         self.f: Callable[[CalibrationData, int], None]
         self.segment_size = segment_size
+        self.direction = direction
         self._init_id()
         self.reset()
 
     def reset(self) -> None:
         super().reset()
-        self.segments: list[tuple[int, int, int]] = []  # column, row_start, row_end
-        column_lengths = [0] * self.calib.n_cols
-        while not all(cl >= self.calib.n_rows for cl in column_lengths):
-            # roll a random column
-            non_full_columns = [i for i in range(self.calib.n_cols) if not column_lengths[i] >= self.calib.n_rows]
-            i = random.choice(non_full_columns)
-            segment_length = self.segment_size
-            if column_lengths[i] + segment_length >= self.calib.n_rows:
-                # last icicle in this column
-                segment_length = self.calib.n_rows - column_lengths[i]
+        self.segments: list[tuple[int, int, int]] = []  # major_index, minor_start, minor_end
+        if self.direction in ("up", "down"):
+            N, M = self.calib.n_cols, self.calib.n_rows
+        else:
+            N, M = self.calib.n_rows, self.calib.n_cols
+        lengths = [0] * N
+        while not all(cl >= M for cl in lengths):
+            # roll a random index
+            non_full = [i for i in range(N) if not lengths[i] >= M]
+            i = random.choice(non_full)
 
-            self.segments.append(
-                (
-                    i,
-                    column_lengths[i],
-                    column_lengths[i] + segment_length - 1,
-                )
+            # migrate the icicles left or right a bit
+            this_length = lengths[i]
+            prev_length = -1
+            if i > 0 and lengths[i - 1] < M:
+                prev_length = lengths[i - 1]
+            next_length = -1
+            if i < (N - 1) and lengths[i + 1] < M:
+                next_length = lengths[i + 1]
+
+            weights = [0, 10, 0]
+            if prev_length > this_length:
+                weights[0] += 2
+                weights[1] -= 2
+            if next_length > this_length:
+                weights[2] += 2
+                weights[1] -= 2
+
+            i += random.choices([-1, 0, +1], weights=weights, k=1)[0]
+
+            # roll a segment length
+            segment_length = random.randint(
+                max(0, self.segment_size - 1),
+                min(M, self.segment_size + 1),
             )
 
-            column_lengths[i] += segment_length
+            if lengths[i] + segment_length >= M:
+                # last icicle in this column
+                segment_length = M - lengths[i]
+
+            if self.direction in ("down", "right"):
+                segment = (
+                    i,
+                    lengths[i],
+                    lengths[i] + segment_length - 1,
+                )
+            else:
+                segment = (
+                    i,
+                    M - 1 - lengths[i],
+                    M - 1 - (lengths[i] + segment_length - 1),
+                )
+
+            self.segments.append(segment)
+
+            lengths[i] += segment_length
 
         self._init_1d_base(len(self.segments))
 
     def step(self) -> PatternStep:
         i = self.i
+        if self.direction in ("up", "down"):
 
-        def _step() -> None:
-            col, row_start, row_end = self.segments[i]
-            utils.select_range(
-                self.calib,
-                (chr(ord("A") + col), row_start + 1),
-                (chr(ord("A") + col), row_end + 1),
-            )
-            self.color.apply()
+            def _step() -> None:
+                col, row_start, row_end = self.segments[i]
+                utils.select_range(
+                    self.calib,
+                    (chr(ord("A") + col), row_start + 1),
+                    (chr(ord("A") + col), row_end + 1),
+                )
+                self.color.apply()
+        else:
+
+            def _step() -> None:
+                row, col_start, col_end = self.segments[i]
+                utils.select_range(
+                    self.calib,
+                    (chr(ord("A") + col_start), row + 1),
+                    (chr(ord("A") + col_end), row + 1),
+                )
+                self.color.apply()
 
         return _step
 
