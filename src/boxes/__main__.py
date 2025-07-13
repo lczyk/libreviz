@@ -78,9 +78,15 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
-    patterns.Palette2(calib).step_all()
+    patterns.Palette2(
+        calib,
+        fun=lambda x, y: (
+            int(255 * (1 - x) * (1 - y)),
+            int(255 * x),
+            int(255 * (1 - y)),
+        ),
+    ).step_all()
 
-    sys.exit()
     patterns.RandomCells(
         calib,
         colors.RandomChangingColor(calib),

@@ -216,14 +216,32 @@ class PaletteTest1(_PatternBase, _2DMixin):
 if TYPE_CHECKING:
     _palette_test_1: Pattern = PaletteTest1.__new__(PaletteTest1)
 
+PaletteFun = Callable[[float, float], tuple[int, int, int]]
+
+
+# x = min(max(x, 0), 1)  # Clamp x to [0, 1]
+#     y = min(max(y, 0), 1)  # Clamp y to [0, 1]
+def default_palette_fun(x: float, y: float) -> tuple[int, int, int]:
+    r = int(255 * x)
+    g = int(255 * y)
+    b = int(255 * (1 - x) * (1 - y))
+    return r, g, b
+
 
 class Palette2(_PatternBase, _1DMixin):
     name = "palette_2"
 
-    def __init__(self, calib: CalibrationData) -> None:
+    def __init__(
+        self,
+        calib: CalibrationData,
+        *,
+        fun: PaletteFun | None = None,
+        d_rows: int = 4,
+        d_cols: int = 2,
+    ) -> None:
         self.calib = calib
-        self.d_rows = min(10, self.calib.n_rows)
-        self.d_cols = min(4, self.calib.n_cols)
+        self.d_rows = min(d_rows, self.calib.n_rows)
+        self.d_cols = min(d_cols, self.calib.n_cols)
         Ni = calib.n_cols // self.d_cols
         Nj = calib.n_rows // self.d_rows
         self.coords: list[tuple[tuple[int, int], tuple[int, int]]] = []
@@ -235,14 +253,12 @@ class Palette2(_PatternBase, _1DMixin):
                         (i * self.d_cols + self.d_cols - 1, j * self.d_rows + self.d_rows - 1),
                     )
                 )
-        # self.coords = [(i, j) for i in range(Ni) for j in range(Nj)]
 
         # if any if the downsampling does not divide evenly, add the remaining cells one-by-one
         self.extra_coords: list[tuple[tuple[int, int], tuple[int, int]]] = []
         n_remaining_cols = calib.n_cols % self.d_cols
         n_remaining_rows = calib.n_rows % self.d_rows
         if n_remaining_cols > 0:
-            print("Adding remaining columns")
             for j in range(Nj):
                 self.extra_coords.append(
                     (
@@ -252,7 +268,6 @@ class Palette2(_PatternBase, _1DMixin):
                 )
 
         if n_remaining_rows > 0:
-            print("Adding remaining rows")
             for i in range(Ni):
                 self.extra_coords.append(
                     (
@@ -260,6 +275,7 @@ class Palette2(_PatternBase, _1DMixin):
                         (i * self.d_cols + self.d_cols - 1, calib.n_rows - 1),
                     )
                 )
+
         if n_remaining_cols > 0 and n_remaining_rows > 0:
             # Add the bottom-right corner if both dimensions have remainders
             self.extra_coords.append(
@@ -269,15 +285,23 @@ class Palette2(_PatternBase, _1DMixin):
                 )
             )
 
+        self.fun: PaletteFun
+        if fun is None:
+            self.fun = default_palette_fun
+        else:
+            self.fun = fun
+
         super().__init__(len(self.coords) + len(self.extra_coords))
         self.reset()
 
     def _xy_to_rgb(self, x: float, y: float) -> tuple[int, int, int]:
-        """Convert (x, y) coordinates to RGB values."""
-        r = int(255 * x)
-        g = int(255 * y)
-        # b = int(255 * (1 - x) * (1 - y))
-        b = 128
+        """Convert x, y coordinates to RGB color using the palette function."""
+        x = min(max(x, 0), 1)  # Clamp x to [0, 1]
+        y = min(max(y, 0), 1)  # Clamp y to [
+        r, g, b = self.fun(x, y)
+        r = min(max(r, 0), 255)  # Clamp r to [0, 255]
+        g = min(max(g, 0), 255)  # Clamp g to [0, 255]
+        b = min(max(b, 0), 255)  # Clamp b to [0, 255]
         return r, g, b
 
     def step(self) -> PatternStep:
