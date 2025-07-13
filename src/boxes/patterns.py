@@ -187,6 +187,32 @@ if TYPE_CHECKING:
     _outward_spiral: Pattern = OutwardSpiral.__new__(OutwardSpiral)
 
 
+class DenseSpiral(_1DBase, _PatternBase):
+    _name_prefix = "dense_spiral"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: colors.Color,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        _nodes = "A:1,S:1,S:52,A:52,A:2,R:2,R:51,B:51,B:3,Q:3,Q:50,C:50,C:4,P:4,P:49,D:49,D:5,O:5,O:48,E:48,E:6,N:6,N:47,F:47,F:7,M:7,M:46,G:46,G:8,L:8,L:45,H:45,H:9,K:9,K:44,I:44,I:10,J:10,J:43"
+        self.nodes = _nodes.split(",")
+        self._init_1d_base(len(self.nodes) - 1)
+        self._init_id()
+        self.reset()
+
+    def step(self) -> PatternStep:
+        n1, n2 = self.nodes[self.i], self.nodes[self.i + 1]
+
+        def _step() -> None:
+            utils.select_range(self.calib, n1, n2)
+            self.color.apply()
+
+        return _step
+
+
 # def palette_test_1(calib: CalibrationData) -> None:
 #     for j in range(calib.n_color_rows):
 #         for i in range(calib.n_color_cols):

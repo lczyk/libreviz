@@ -281,7 +281,7 @@ STANDARD_COLORS_MATRIX = _init_standard_colors_matrix(STANDARD_COLORS_BY_NAME)
 #         ]
 #     )
 
-YELLOWS: list[ColorName] = [
+YELLOWS: tuple[ColorName, ...] = (
     "light_yellow_4",
     "light_yellow_3",
     "light_yellow_2",
@@ -291,9 +291,9 @@ YELLOWS: list[ColorName] = [
     "dark_yellow_2",
     "dark_yellow_3",
     "dark_yellow_4",
-]
+)
 
-GOLDS: list[ColorName] = [
+GOLDS: tuple[ColorName, ...] = (
     "light_gold_4",
     "light_gold_3",
     "light_gold_2",
@@ -303,9 +303,9 @@ GOLDS: list[ColorName] = [
     "dark_gold_2",
     "dark_gold_3",
     "dark_gold_4",
-]
+)
 
-ORANGES: list[ColorName] = [
+ORANGES: tuple[ColorName, ...] = (
     "light_orange_4",
     "light_orange_3",
     "light_orange_2",
@@ -315,9 +315,9 @@ ORANGES: list[ColorName] = [
     "dark_orange_2",
     "dark_orange_3",
     "dark_orange_4",
-]
+)
 
-BRICKS: list[ColorName] = [
+BRICKS: tuple[ColorName, ...] = (
     "light_brick_4",
     "light_brick_3",
     "light_brick_2",
@@ -327,9 +327,9 @@ BRICKS: list[ColorName] = [
     "dark_brick_2",
     "dark_brick_3",
     "dark_brick_4",
-]
+)
 
-REDS: list[ColorName] = [
+REDS: tuple[ColorName, ...] = (
     "light_red_4",
     "light_red_3",
     "light_red_2",
@@ -339,9 +339,9 @@ REDS: list[ColorName] = [
     "dark_red_2",
     "dark_red_3",
     "dark_red_4",
-]
+)
 
-MAGENTAS: list[ColorName] = [
+MAGENTAS: tuple[ColorName, ...] = (
     "light_magenta_4",
     "light_magenta_3",
     "light_magenta_2",
@@ -351,9 +351,9 @@ MAGENTAS: list[ColorName] = [
     "dark_magenta_2",
     "dark_magenta_3",
     "dark_magenta_4",
-]
+)
 
-PURPLES: list[ColorName] = [
+PURPLES: tuple[ColorName, ...] = (
     "light_purple_4",
     "light_purple_3",
     "light_purple_2",
@@ -363,9 +363,9 @@ PURPLES: list[ColorName] = [
     "dark_purple_2",
     "dark_purple_3",
     "dark_purple_4",
-]
+)
 
-INDIGOS: list[ColorName] = [
+INDIGOS: tuple[ColorName, ...] = (
     "light_indigo_4",
     "light_indigo_3",
     "light_indigo_2",
@@ -375,9 +375,9 @@ INDIGOS: list[ColorName] = [
     "dark_indigo_2",
     "dark_indigo_3",
     "dark_indigo_4",
-]
+)
 
-BLUES: list[ColorName] = [
+BLUES: tuple[ColorName, ...] = (
     "light_blue_4",
     "light_blue_3",
     "light_blue_2",
@@ -387,9 +387,9 @@ BLUES: list[ColorName] = [
     "dark_blue_2",
     "dark_blue_3",
     "dark_blue_4",
-]
+)
 
-TEALS: list[ColorName] = [
+TEALS: tuple[ColorName, ...] = (
     "light_teal_4",
     "light_teal_3",
     "light_teal_2",
@@ -399,9 +399,9 @@ TEALS: list[ColorName] = [
     "dark_teal_2",
     "dark_teal_3",
     "dark_teal_4",
-]
+)
 
-GREENS: list[ColorName] = [
+GREENS: tuple[ColorName, ...] = (
     "light_green_4",
     "light_green_3",
     "light_green_2",
@@ -411,9 +411,9 @@ GREENS: list[ColorName] = [
     "dark_green_2",
     "dark_green_3",
     "dark_green_4",
-]
+)
 
-LIMES: list[ColorName] = [
+LIMES: tuple[ColorName, ...] = (
     "light_lime_4",
     "light_lime_3",
     "light_lime_2",
@@ -423,9 +423,9 @@ LIMES: list[ColorName] = [
     "dark_lime_2",
     "dark_lime_3",
     "dark_lime_4",
-]
+)
 
-GROUPS: dict[str, list[ColorName]] = {
+GROUPS: dict[str, tuple[ColorName, ...]] = {
     "yellow": YELLOWS,
     "gold": GOLDS,
     "orange": ORANGES,

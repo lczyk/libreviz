@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import sys
 import time
 from collections import deque
@@ -78,6 +79,13 @@ def run(calib: CalibrationData) -> None:
 
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
+
+    c = list(colors.TEALS) + list(colors.LIMES)
+    random.shuffle(c)
+    patterns.DenseSpiral(
+        calib,
+        colors.StandardPaletteColor(calib, c),
+    ).step_all()
 
     dc: list[tuple[Literal["down", "up", "left", "right"], str]] = [
         ("down", "light_brick_1"),
