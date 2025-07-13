@@ -396,6 +396,30 @@ if TYPE_CHECKING:
 #             pyautogui.sleep(sleep_time)
 
 
+class RandomCells(_PatternBase, _1DMixin):
+    name = "random_cells"
+
+    def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
+        self.calib = calib
+        self.color = color
+        super().__init__(calib.n_cols * calib.n_rows)
+        self.reset()
+
+    def reset(self) -> None:
+        super().reset()
+        self.coords = [(i, j) for i in range(self.calib.n_cols) for j in range(self.calib.n_rows)]
+        random.shuffle(self.coords)
+
+    def step(self) -> PatternStep:
+        i, j = self.coords[self.i]
+
+        def _step() -> None:
+            click(*utils.cell_coords(self.calib, (i, j)))
+            self.color.apply()
+
+        return _step
+
+
 class GaussianCells(_PatternBase, _1DMixin):
     name = "cells"
 

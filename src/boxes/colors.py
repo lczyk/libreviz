@@ -535,22 +535,22 @@ class RandomChangingColor(Color):
     def __init__(self, calib: CalibrationData) -> None:
         super().__init__()
         self.calib = calib
-        self.color = _random_color_ij(calib)
+        self.color_ij = _random_color_ij(calib)
 
     def rgb(self) -> "tuple[int, int, int]":
         """Return the RGB values of the color."""
-        raise NotImplementedError("We don't have the lookup table for RGB values for the standard colors yet")
+        return STANDARD_COLORS_MATRIX[self.color_ij[1]][self.color_ij[0]][1]
 
     def _apply(self) -> None:
         click(*standard_color_coords(self.calib, _random_color_ij(self.calib)))
 
     def apply(self) -> None:
         apply_or_recent(self.calib, self.rgb(), self._apply)
-        self.color = _random_color_ij(self.calib)  # re-roll
+        self.color_ij = _random_color_ij(self.calib)  # re-roll
 
     def indices(self) -> "tuple[int, int]":
         """Return the coordinates of the color in the palette."""
-        return self.color
+        return self.color_ij
 
 
 if TYPE_CHECKING:

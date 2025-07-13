@@ -78,6 +78,11 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
+    patterns.RandomCells(
+        calib,
+        colors.RandomChangingColor(calib),
+    ).step_all()
+
     patterns.GaussianCells(
         calib,
         inner=colors.StandardColor.from_name(calib, "dark_lime_1"),
