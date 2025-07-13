@@ -78,11 +78,21 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
+    palette = None
+
     while True:
-        patterns.Boxes(
-            calib,
-            colors.RandomChangingColor(calib),
-        ).step_all()
+        for color_group in colors.GROUPS.values():
+            # create a 'bounce' effect by reversing half of the color group
+            color_group_2 = list(color_group)
+            color_group_2.extend(reversed(color_group_2[1:-1]))
+
+            palette = colors.StandardPaletteColor(
+                calib,
+                color_group_2,
+                offset=palette.current_index if palette else 0,
+                cache=False,
+            )
+            patterns.Boxes(calib, palette).step_all()
 
     patterns.Palette2(
         calib,

@@ -527,7 +527,6 @@ class Boxes(_PatternBase, _1DMixin):
             return random.choice(uncovered_cells)
 
         def _mark_cells_as_covered(cells_map: list[list[bool]], i1: int, j1: int, i2: int, j2: int) -> None:
-            print(f"Marking cells from ({i1}, {j1}) to ({i2}, {j2}) as covered")
             r1 = range(i1, i2 + 1) if i1 < i2 else range(i2, i1 + 1)
             r2 = range(j1, j2 + 1) if j1 < j2 else range(j2, j1 + 1)
             for i in r1:

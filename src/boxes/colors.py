@@ -97,7 +97,7 @@ STANDARD_COLORS_BY_NAME: dict[ColorName, tuple[ColorIJ, ColorRGB]] = {
     "yellow": ((0, 1), (255, 255, 0)),
     "gold": ((1, 1), (255, 191, 0)),
     "orange": ((2, 1), (255, 128, 0)),
-    "brick:": ((3, 1), (255, 64, 0)),
+    "brick": ((3, 1), (255, 64, 0)),
     "red": ((4, 1), (255, 0, 0)),
     "magenta": ((5, 1), (191, 0, 65)),
     "purple": ((6, 1), (128, 0, 128)),
@@ -658,6 +658,44 @@ class ArbitraryColor(Color):
 
 if TYPE_CHECKING:
     _arbitrary_color: Color = ArbitraryColor.__new__(ArbitraryColor)
+
+
+class StandardPaletteColor(Color):
+    def __init__(
+        self,
+        calib: CalibrationData,
+        palette: list[str],
+        *,
+        offset: int = 0,
+        cache: bool = True,
+    ) -> None:
+        super().__init__()
+        self.calib = calib
+        self.palette = palette
+        if not self.palette:
+            raise ValueError("Palette cannot be empty")
+        self.current_index = 0 + offset % len(self.palette)
+        self.cache = cache
+
+    def rgb(self) -> "tuple[int, int, int]":
+        """Return the RGB values of the current color in the palette."""
+        color_name = self.palette[self.current_index]
+        return STANDARD_COLORS_BY_NAME[color_name][1]
+
+    def _apply(self) -> None:
+        """Apply the current color in the palette."""
+        color_name = self.palette[self.current_index]
+        color = StandardColor.from_name(self.calib, color_name)
+        color._apply()
+        self.current_index = (self.current_index + 1) % len(self.palette)
+
+    def apply(self) -> None:
+        """Apply the current color in the palette."""
+        apply_or_recent(self.calib, self.rgb(), self._apply, cache=self.cache)
+
+
+if TYPE_CHECKING:
+    _standard_palette_color: Color = StandardPaletteColor.__new__(StandardPaletteColor)
 
 
 def reset_all_colors(calib: CalibrationData) -> None:
