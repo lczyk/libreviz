@@ -1,6 +1,6 @@
 import math
 import random
-from typing import TYPE_CHECKING, Callable, Protocol, no_type_check
+from typing import TYPE_CHECKING, Callable, Literal, Protocol, no_type_check
 
 from . import colors, utils
 from .calibrate import CalibrationData
@@ -10,8 +10,6 @@ PatternStep = Callable[[], None]
 
 
 class Pattern(Protocol):
-    name: str
-
     def step(self) -> PatternStep:
         """Return the procedure to call to perform a single step of the pattern."""
         ...
@@ -38,8 +36,17 @@ class Pattern(Protocol):
         """Reset the pattern to its initial state."""
         ...
 
+    @property
+    def name(self) -> str: ...
+
 
 class _PatternBase:
+    _id: int
+    _name_prefix: str
+
+    def __init__(self) -> None:
+        self._id = random.randint(1, 9999)
+
     @no_type_check
     def all_steps(self) -> list[PatternStep]:
         """Perform all steps of the pattern."""
@@ -60,14 +67,19 @@ class _PatternBase:
         for step in self.all_steps():
             step()
 
+    @property
+    def name(self) -> str:
+        return self._name_prefix + "_" + str(self._id)
 
-class _1DMixin:
+
+class _1DBase:
     """Mixin for 1D patterns that have a single index."""
 
     i: int
     Ni: int
 
     def __init__(self, Ni: int) -> None:
+        super().__init__()
         self.Ni = Ni
         self.i = 0
 
@@ -86,7 +98,7 @@ class _1DMixin:
         return self.Ni
 
 
-class _2DMixin:
+class _2DBase:
     """Mixin for 2D patterns that have two indices."""
 
     i: int
@@ -124,8 +136,8 @@ class _2DMixin:
 ################################################################################
 
 
-class InwardSpiral(_PatternBase, _1DMixin):
-    name = "inward_spiral"
+class InwardSpiral(_1DBase, _PatternBase):
+    _name_prefix = "inward_spiral"
 
     def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
         self.calib = calib
@@ -149,8 +161,8 @@ if TYPE_CHECKING:
     _inward_spiral: Pattern = InwardSpiral.__new__(InwardSpiral)
 
 
-class OutwardSpiral(_PatternBase, _1DMixin):
-    name = "outward_spiral"
+class OutwardSpiral(_1DBase, _PatternBase):
+    _name_prefix = "outward_spiral"
 
     def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
         self.calib = calib
@@ -180,8 +192,8 @@ if TYPE_CHECKING:
 #             # print(f"Applying color ({i}, {j})")
 
 
-class PaletteTest1(_PatternBase, _2DMixin):
-    name = "palette_test_1"
+class PaletteTest1(_2DBase, _PatternBase):
+    _name_prefix = "palette_test_1"
 
     def __init__(self, calib: CalibrationData) -> None:
         self.calib = calib
@@ -228,8 +240,8 @@ def default_palette_fun(x: float, y: float) -> tuple[int, int, int]:
     return r, g, b
 
 
-class Palette2(_PatternBase, _1DMixin):
-    name = "palette_2"
+class Palette2(_1DBase, _PatternBase):
+    _name_prefix = "palette_2"
 
     def __init__(
         self,
@@ -342,24 +354,32 @@ class Palette2(_PatternBase, _1DMixin):
         return _step
 
 
-class ColumnLights(_PatternBase, _1DMixin):
-    name = "column_lights"
+class Lights(_1DBase, _PatternBase):
+    _name_prefix = "lights"
 
     def __init__(
         self,
         calib: CalibrationData,
+        which: Literal["row", "column"],
         color: colors.Color,
     ) -> None:
         self.calib = calib
         self.color = color
-        super().__init__(calib.n_cols)
+        self.f: Callable[[CalibrationData, int], None]
+        if which == "row":
+            self.f = utils.select_row_index
+            N = calib.n_rows
+        else:
+            self.f = utils.select_column_index
+            N = calib.n_cols
+        super().__init__(N)
         self.reset()
 
     def step(self) -> PatternStep:
         i = self.i
 
         def _step() -> None:
-            utils.select_column_index(self.calib, self.indices[i])
+            self.f(self.calib, self.indices[i])
             self.color.apply()
 
         return _step
@@ -370,42 +390,11 @@ class ColumnLights(_PatternBase, _1DMixin):
 
 
 if TYPE_CHECKING:
-    _column_lights: Pattern = ColumnLights.__new__(ColumnLights)
+    _lights: Pattern = Lights.__new__(Lights)
 
 
-class RowLights(_PatternBase, _1DMixin):
-    name = "row_lights"
-
-    def __init__(
-        self,
-        calib: CalibrationData,
-        color: colors.Color,
-    ) -> None:
-        self.calib = calib
-        self.color = color
-        super().__init__(calib.n_rows)
-        self.reset()
-
-    def step(self) -> PatternStep:
-        i = self.i
-
-        def _step() -> None:
-            utils.select_row_index(self.calib, self.indices[i])
-            self.color.apply()
-
-        return _step
-
-    def reset(self) -> None:
-        super().reset()
-        self.indices = random.sample(range(self.Ni), self.Ni)
-
-
-if TYPE_CHECKING:
-    _row_lights: Pattern = RowLights.__new__(RowLights)
-
-
-class RandomCells(_PatternBase, _1DMixin):
-    name = "random_cells"
+class RandomCells(_1DBase, _PatternBase):
+    _name_prefix = "random_cells"
 
     def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
         self.calib = calib
@@ -432,8 +421,8 @@ if TYPE_CHECKING:
     _random_cells: Pattern = RandomCells.__new__(RandomCells)
 
 
-class GaussianCells(_PatternBase, _1DMixin):
-    name = "cells"
+class GaussianCells(_1DBase, _PatternBase):
+    _name_prefix = "cells"
 
     def __init__(
         self,
@@ -504,7 +493,9 @@ if TYPE_CHECKING:
     _gaussian_cells: Pattern = GaussianCells.__new__(GaussianCells)
 
 
-class Boxes(_PatternBase, _1DMixin):
+class Boxes(_1DBase, _PatternBase):
+    _name_prefix = "boxes"
+
     def __init__(
         self,
         calib: CalibrationData,
@@ -558,6 +549,9 @@ class Boxes(_PatternBase, _1DMixin):
 
         return _step
 
+
+if TYPE_CHECKING:
+    _boxes: Pattern = Boxes.__new__(Boxes)
 
 ################################################################################
 
