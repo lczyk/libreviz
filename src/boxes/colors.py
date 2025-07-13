@@ -625,3 +625,11 @@ def reset_all_colors(calib: CalibrationData) -> None:
     """Reset all colors in the grid to 'No Fill'."""
     utils.select_range(calib, ("A", 1), ("S", 52))
     NoFillColor(calib).apply()
+
+
+def blend_rgb(c1: ColorRGB, c2: ColorRGB, ratio: float) -> ColorRGB:
+    """Blend two RGB colors together based on a ratio."""
+    r = int(c1[0] * (1 - ratio) + c2[0] * ratio)
+    g = int(c1[1] * (1 - ratio) + c2[1] * ratio)
+    b = int(c1[2] * (1 - ratio) + c2[2] * ratio)
+    return (r, g, b)

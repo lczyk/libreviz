@@ -217,45 +217,103 @@ if TYPE_CHECKING:
     _palette_test_1: Pattern = PaletteTest1.__new__(PaletteTest1)
 
 
-class PaletteTest2(_PatternBase, _1DMixin):
-    name = "palette_test_2"
+class Palette2(_PatternBase, _1DMixin):
+    name = "palette_2"
 
     def __init__(self, calib: CalibrationData) -> None:
         self.calib = calib
-        self.d_rows = 4
-        self.d_cols = 2
+        self.d_rows = min(10, self.calib.n_rows)
+        self.d_cols = min(4, self.calib.n_cols)
         Ni = calib.n_cols // self.d_cols
         Nj = calib.n_rows // self.d_rows
-        self.coords = [(i, j) for i in range(Ni) for j in range(Nj)]
+        self.coords: list[tuple[tuple[int, int], tuple[int, int]]] = []
+        for i in range(Ni):
+            for j in range(Nj):
+                self.coords.append(
+                    (
+                        (i * self.d_cols, j * self.d_rows),
+                        (i * self.d_cols + self.d_cols - 1, j * self.d_rows + self.d_rows - 1),
+                    )
+                )
+        # self.coords = [(i, j) for i in range(Ni) for j in range(Nj)]
 
-        super().__init__(len(self.coords))
+        # if any if the downsampling does not divide evenly, add the remaining cells one-by-one
+        self.extra_coords: list[tuple[tuple[int, int], tuple[int, int]]] = []
+        n_remaining_cols = calib.n_cols % self.d_cols
+        n_remaining_rows = calib.n_rows % self.d_rows
+        if n_remaining_cols > 0:
+            print("Adding remaining columns")
+            for j in range(Nj):
+                self.extra_coords.append(
+                    (
+                        (calib.n_cols - n_remaining_cols, j * self.d_rows),
+                        (calib.n_cols - 1, j * self.d_rows + self.d_rows - 1),
+                    )
+                )
+
+        if n_remaining_rows > 0:
+            print("Adding remaining rows")
+            for i in range(Ni):
+                self.extra_coords.append(
+                    (
+                        (i * self.d_cols, calib.n_rows - n_remaining_rows),
+                        (i * self.d_cols + self.d_cols - 1, calib.n_rows - 1),
+                    )
+                )
+        if n_remaining_cols > 0 and n_remaining_rows > 0:
+            # Add the bottom-right corner if both dimensions have remainders
+            self.extra_coords.append(
+                (
+                    (calib.n_cols - n_remaining_cols, calib.n_rows - n_remaining_rows),
+                    (calib.n_cols - 1, calib.n_rows - 1),
+                )
+            )
+
+        super().__init__(len(self.coords) + len(self.extra_coords))
         self.reset()
 
     def _xy_to_rgb(self, x: float, y: float) -> tuple[int, int, int]:
         """Convert (x, y) coordinates to RGB values."""
         r = int(255 * x)
         g = int(255 * y)
-        b = int(255 * (1 - x) * (1 - y))
+        # b = int(255 * (1 - x) * (1 - y))
+        b = 128
         return r, g, b
 
     def step(self) -> PatternStep:
-        i, j = self.coords[self.i]
-        rgb = self._xy_to_rgb(
-            i / (self.calib.n_cols // self.d_cols - 1),
-            j / (self.calib.n_rows // self.d_rows - 1),
-        )
+        if self.i < len(self.coords):
+            (i1, j1), (i2, j2) = self.coords[self.i]
 
-        def _step() -> None:
-            utils.select_range(
-                self.calib,
-                (chr(ord("A") + i * self.d_cols), j * self.d_rows + 1),
-                (chr(ord("A") + i * self.d_cols + (self.d_cols - 1)), j * self.d_rows + (self.d_rows - 1) + 1),
+            rgb = colors.blend_rgb(
+                self._xy_to_rgb(i1 / self.calib.n_cols, j1 / self.calib.n_rows),
+                self._xy_to_rgb(i2 / self.calib.n_cols, j2 / self.calib.n_rows),
+                0.5,
             )
-            colors.ArbitraryColor(
-                self.calib,
-                *rgb,
-                coerce=True,
-            ).apply()
+
+            def _step() -> None:
+                utils.select_range(
+                    self.calib,
+                    (chr(ord("A") + i1), j1 + 1),
+                    (chr(ord("A") + i2), j2 + 1),
+                )
+                colors.ArbitraryColor(self.calib, *rgb, coerce=True).apply()
+
+        else:
+            # Handle the extra coordinates if any
+            (i1, j1), (i2, j2) = self.extra_coords[self.i - len(self.coords)]
+            rgb = colors.blend_rgb(
+                self._xy_to_rgb(i1 / self.calib.n_cols, j1 / self.calib.n_rows),
+                self._xy_to_rgb(i2 / self.calib.n_cols, j2 / self.calib.n_rows),
+                0.5,
+            )
+
+            def _step() -> None:
+                utils.select_range(
+                    self.calib,
+                    (chr(ord("A") + i1), j1 + 1),
+                    (chr(ord("A") + i2), j2 + 1),
+                )
+                colors.ArbitraryColor(self.calib, *rgb, coerce=True).apply()
 
         return _step
 
