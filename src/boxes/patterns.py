@@ -2,8 +2,6 @@ import math
 import random
 from typing import TYPE_CHECKING, Callable, Protocol, no_type_check
 
-import pyautogui
-
 from . import colors, utils
 from .calibrate import CalibrationData
 from .patched_click import click
@@ -55,6 +53,12 @@ class _PatternBase:
     def __len__(self) -> int:
         """Return the number of steps in the pattern."""
         return self.n_steps
+
+    @no_type_check
+    def step_all(self) -> None:
+        """Perform all steps of the pattern."""
+        for step in self.all_steps():
+            step()
 
 
 class _1DMixin:
@@ -314,82 +318,154 @@ if TYPE_CHECKING:
     _row_lights: Pattern = RowLights.__new__(RowLights)
 
 
-def pattern_cells(
-    calib: CalibrationData,
-    color: colors.Color,
-    sleep_time: float = 0.1,
-) -> None:
-    """Apply a color to each cell in the grid."""
-    # coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
-    # random.shuffle(coords)
+# def pattern_cells(
+#     calib: CalibrationData,
+#     color: colors.Color,
+#     sleep_time: float = 0.1,
+# ) -> None:
+#     """Apply a color to each cell in the grid."""
+#     # coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
+#     # random.shuffle(coords)
 
-    def _color(i: int, j: int) -> tuple[int, int, int]:
-        # color.uv(*ij_2_uv(calib, i, j))
-        # color.wq(*ij_2_wq(calib, i, j))
-        return color.rgb()
+#     def _color(i: int, j: int) -> tuple[int, int, int]:
+#         # color.uv(*ij_2_uv(calib, i, j))
+#         # color.wq(*ij_2_wq(calib, i, j))
+#         return color.rgb()
 
-    coords_with_probs_and_color = [(i, j, _color(i, j)) for i in range(calib.n_cols) for j in range(calib.n_rows)]
+#     coords_with_probs_and_color = [(i, j, _color(i, j)) for i in range(calib.n_cols) for j in range(calib.n_rows)]
 
-    def _color_distance(c1: tuple[int, int, int], c2: tuple[int, int, int]) -> float:
-        """Calculate the Euclidean distance between two RGB colors."""
-        return math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2)
+#     def _color_distance(c1: tuple[int, int, int], c2: tuple[int, int, int]) -> float:
+#         """Calculate the Euclidean distance between two RGB colors."""
+#         return math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2)
 
-    # group by color
-    coords_with_probs: dict[tuple[int, int, int], list[tuple[int, int]]] = {}
-    distance_tol = 10
-    for i, j, color_rgb in coords_with_probs_and_color:
-        # Check if the color is already in the dictionary
-        found = False
-        for existing_color in coords_with_probs:
-            if _color_distance(existing_color, color_rgb) < distance_tol:
-                coords_with_probs[existing_color].append((i, j))
-                found = True
-                break
-        if not found:
-            coords_with_probs[color_rgb] = [(i, j)]
+#     # group by color
+#     coords_with_probs: dict[tuple[int, int, int], list[tuple[int, int]]] = {}
+#     distance_tol = 10
+#     for i, j, color_rgb in coords_with_probs_and_color:
+#         # Check if the color is already in the dictionary
+#         found = False
+#         for existing_color in coords_with_probs:
+#             if _color_distance(existing_color, color_rgb) < distance_tol:
+#                 coords_with_probs[existing_color].append((i, j))
+#                 found = True
+#                 break
+#         if not found:
+#             coords_with_probs[color_rgb] = [(i, j)]
 
-    # shuffle the colors in each group
-    for color_rgb in coords_with_probs:
-        random.shuffle(coords_with_probs[color_rgb])
+#     # shuffle the colors in each group
+#     for color_rgb in coords_with_probs:
+#         random.shuffle(coords_with_probs[color_rgb])
 
-    # max_prob = max(prob for _, _, prob in coords_with_probs)
-    # # Normalize probabilities to be between 0 and 1
-    # coords_with_probs = deque(
-    #     (i, j, prob / max_prob) for i, j, prob in coords_with_probs
-    # )
+#     # max_prob = max(prob for _, _, prob in coords_with_probs)
+#     # # Normalize probabilities to be between 0 and 1
+#     # coords_with_probs = deque(
+#     #     (i, j, prob / max_prob) for i, j, prob in coords_with_probs
+#     # )
 
-    # Group by color
+#     # Group by color
 
-    # Sort by probability in descending order
-    # coords_with_probs = deque(
-    #     sorted(coords_with_probs, key=lambda x: x[2], reverse=True)
-    # )
+#     # Sort by probability in descending order
+#     # coords_with_probs = deque(
+#     #     sorted(coords_with_probs, key=lambda x: x[2], reverse=True)
+#     # )
 
-    # # Shuffle the coordinates with probabilities
-    # random.shuffle(coords_with_probs)
+#     # # Shuffle the coordinates with probabilities
+#     # random.shuffle(coords_with_probs)
 
-    # coords = []
-    # while coords_with_probs:
-    #     i, j, prob = coords_with_probs.popleft()
-    #     if random.random() < prob:
-    #         coords.append((i, j))
-    #     else:
-    #         # Reinsert the item at the end of the deque with the same probability
-    #         coords_with_probs.append((i, j, prob))
+#     # coords = []
+#     # while coords_with_probs:
+#     #     i, j, prob = coords_with_probs.popleft()
+#     #     if random.random() < prob:
+#     #         coords.append((i, j))
+#     #     else:
+#     #         # Reinsert the item at the end of the deque with the same probability
+#     #         coords_with_probs.append((i, j, prob))
 
-    # for i, j in coords:
-    #     click(*cell_coords(calib, (i, j)))
-    #     color.uv(*ij_2_uv(calib, i, j))
-    #     color.wq(*ij_2_wq(calib, i, j))
-    #     color.apply()
-    #     pyautogui.sleep(sleep_time)
+#     # for i, j in coords:
+#     #     click(*cell_coords(calib, (i, j)))
+#     #     color.uv(*ij_2_uv(calib, i, j))
+#     #     color.wq(*ij_2_wq(calib, i, j))
+#     #     color.apply()
+#     #     pyautogui.sleep(sleep_time)
 
-    for color_rgb, coords in coords_with_probs.items():
-        for i, j in coords:
-            click(*utils.cell_coords(calib, (i, j)))
+#     for color_rgb, coords in coords_with_probs.items():
+#         for i, j in coords:
+#             click(*utils.cell_coords(calib, (i, j)))
+#             # print(f"Applying color {color_rgb} to cell ({i}, {j})")
+#             colors.ArbitraryColor(calib, *color_rgb).apply()
+#             pyautogui.sleep(sleep_time)
+
+
+class GaussianCells(_PatternBase, _1DMixin):
+    name = "cells"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        *,
+        inner: colors.Color,
+        outer: colors.Color,
+        radius: float = 1.5,
+    ) -> None:
+        self.calib = calib
+        self.color_inner = inner
+        self.color_outer = outer
+        self.radius = radius
+        super().__init__(calib.n_cols * calib.n_rows)
+        self.reset()
+
+    def reset(self) -> None:
+        super().reset()
+
+        def _color(i: int, j: int) -> tuple[int, int, int]:
+            w, q = utils.ij2wq(self.calib, i, j)
+            r = math.sqrt(w**2 + q**2)
+            alpha = min(1, r / self.radius)
+            return (
+                int(self.color_inner.rgb()[0] * (1 - alpha) + self.color_outer.rgb()[0] * alpha),
+                int(self.color_inner.rgb()[1] * (1 - alpha) + self.color_outer.rgb()[1] * alpha),
+                int(self.color_inner.rgb()[2] * (1 - alpha) + self.color_outer.rgb()[2] * alpha),
+            )
+
+        coords_with_color = [(i, j, _color(i, j)) for i in range(self.calib.n_cols) for j in range(self.calib.n_rows)]
+
+        # group by color
+        grouped_coords: dict[tuple[int, int, int], list[tuple[int, int]]] = {}
+        distance_tol = 10
+        for i, j, color_rgb in coords_with_color:
+            # Check if the color is already in the dictionary
+            found = False
+            for existing_color in grouped_coords:
+                if colors.color_distance(existing_color, color_rgb) < distance_tol:
+                    grouped_coords[existing_color].append((i, j))
+                    found = True
+                    break
+            if not found:
+                grouped_coords[color_rgb] = [(i, j)]
+
+        # shuffle the colors in each group
+        for color_rgb in grouped_coords:
+            random.shuffle(grouped_coords[color_rgb])
+
+        # flatten the grouped coordinates
+        self.coords = []
+        for color_rgb, coords in grouped_coords.items():
+            for i, j in coords:
+                self.coords.append((i, j, color_rgb))
+
+    def step(self) -> PatternStep:
+        i, j, color_rgb = self.coords[self.i]
+
+        def _step() -> None:
+            click(*utils.cell_coords(self.calib, (i, j)))
             # print(f"Applying color {color_rgb} to cell ({i}, {j})")
-            colors.ArbitraryColor(calib, *color_rgb).apply()
-            pyautogui.sleep(sleep_time)
+            colors.ArbitraryColor(self.calib, *color_rgb).apply()
+
+        return _step
+
+
+if TYPE_CHECKING:
+    _gaussian_cells: Pattern = GaussianCells.__new__(GaussianCells)
 
 
 def interweave_patterns(patterns: list[Pattern]) -> None:

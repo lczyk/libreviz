@@ -78,6 +78,12 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
+    patterns.GaussianCells(
+        calib,
+        inner=colors.StandardColor.from_name(calib, "dark_lime_1"),
+        outer=colors.StandardColor.from_name(calib, "light_brick_1"),
+    ).step_all()
+
     # c = ["red", "green", "blue", "yellow", "brick", "lime", "teal"]
 
     # while True:
@@ -91,7 +97,7 @@ def run(calib: CalibrationData) -> None:
     #     patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_2)).step_all()
 
     c1 = deque(colors.TEALS)
-    c2 = deque(colors.GOLDS)
+    c2 = deque(colors.REDS)
 
     while True:
         this_c1 = c1.popleft()

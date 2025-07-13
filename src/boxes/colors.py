@@ -445,6 +445,7 @@ GROUPS: dict[str, list[ColorName]] = {
     "lime": LIMES,
 }
 
+
 ################################################################################
 class StandardColor:
     def __init__(self, calib: CalibrationData, ci: int, cj: int) -> None:

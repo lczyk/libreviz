@@ -112,13 +112,13 @@ def select_row_index(calib: CalibrationData, row: int) -> None:
     click(*coords)
 
 
-def ij_2_uv(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
+def ij2uv(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
     u = i / (calib.n_cols - 1) * 2 - 1
     v = j / (calib.n_rows - 1) * 2 - 1
     return (u, v)
 
 
-def ij_2_wq(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
+def ij2wq(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
     # w/q coordinates are just like u/v, but the color is in screen coordinates,
     # not image coordinates. This means that the circles are drawn correctly
     cell_width = (calib.x2 - calib.x1) / (calib.n_cols - 1)
