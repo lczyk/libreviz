@@ -1,6 +1,5 @@
 import math
 import random
-import time
 from typing import TYPE_CHECKING, Protocol, no_type_check
 
 import pyautogui
@@ -22,11 +21,6 @@ class Pattern(Protocol):
     @property
     def n_steps(self) -> int:
         """Return the number of steps in the pattern."""
-        ...
-
-    @property
-    def n_left(self) -> int:
-        """Return the number of steps left in the pattern."""
         ...
 
 
@@ -63,10 +57,6 @@ class InwardSpiral(_PatternBase):
     def n_steps(self) -> int:
         return len(self.nodes) - 1
 
-    @property
-    def n_left(self) -> int:
-        return len(self.nodes) - 1 - self.i
-
 
 if TYPE_CHECKING:
     _inward_spiral: Pattern = InwardSpiral.__new__(InwardSpiral)
@@ -91,10 +81,6 @@ class OutwardSpiral(_PatternBase):
     @property
     def n_steps(self) -> int:
         return len(self.nodes) - 1
-
-    @property
-    def n_left(self) -> int:
-        return len(self.nodes) - 1 - self.i
 
 
 if TYPE_CHECKING:
@@ -147,10 +133,6 @@ class PaletteTest1(_PatternBase):
     def n_steps(self) -> int:
         return self.calib.n_color_rows * self.calib.n_color_cols
 
-    @property
-    def n_left(self) -> int:
-        return self.calib.n_color_rows * self.calib.n_color_cols - (self.j * self.calib.n_color_cols + self.i)
-
 
 if TYPE_CHECKING:
     _palette_test_1: Pattern = PaletteTest1.__new__(PaletteTest1)
@@ -186,67 +168,58 @@ def palette_test_2(calib: CalibrationData) -> None:
         colors.ArbitraryColor(calib, *rgb).apply()
 
 
-def pattern_column_lights(
-    calib: CalibrationData,
-    color: colors.Color,
-    sleep_time: float = 0.1,
-) -> None:
-    """Apply a color to each cell in a column."""
-    column_indices = [i for i in range(calib.n_cols)]
-    random.shuffle(column_indices)
-    for i in column_indices:
-        # select_range(calib, (chr(ord("A") + i), 1), (chr(ord("A") + i), calib.n_rows))
-        utils.select_column_index(calib, i)
-        color.apply()
-        pyautogui.sleep(sleep_time)
+class ColumnLights(_PatternBase):
+    name = "column_lights"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: colors.Color,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        self.i = 0
+        indices = [i for i in range(calib.n_cols)]
+        random.shuffle(indices)
+        self.indices = indices
+
+    def step(self) -> None:
+        utils.select_column_index(self.calib, self.indices[self.i])
+        self.color.apply()
+        self.i += 1
+
+    @property
+    def n_steps(self) -> int:
+        return self.calib.n_cols
 
 
-def pattern_row_lights(
-    calib: CalibrationData,
-    color: colors.Color,
-    sleep_time: float = 0.1,
-) -> None:
-    """Apply a color to each cell in a row."""
-    row_indices = [i for i in range(calib.n_rows)]
-    random.shuffle(row_indices)
-    for i in row_indices:
-        # select_range(calib, ("A", i + 1), (chr(ord("A") + calib.n_cols - 1), i + 1))
-        utils.select_row_index(calib, i)
-        color.apply()
-        pyautogui.sleep(sleep_time)
+if TYPE_CHECKING:
+    _column_lights: Pattern = ColumnLights.__new__(ColumnLights)
 
 
-def pattern_column_row_lights(
-    calib: CalibrationData,
-    col_color: colors.Color,
-    row_color: colors.Color,
-    sleep_time: float = 0.1,
-) -> None:
-    """Apply a color to each cell in a column and then in a row."""
-    column_indices = [i for i in range(calib.n_cols)]
-    random.shuffle(column_indices)
-    row_indices = [i for i in range(calib.n_rows)]
-    random.shuffle(row_indices)
+class RowLights(_PatternBase):
+    name = "row_lights"
 
-    if len(column_indices) < len(row_indices):
-        # les columns than rows. for each column, we need to apply a couple of rows
-        ratio = len(column_indices) / len(row_indices)
-        while True:
-            if not column_indices and not row_indices:
-                # no more columns or rows to apply
-                break
-            if len(column_indices) > len(row_indices) * ratio:
-                # apply columns
-                utils.select_column_index(calib, column_indices.pop())
-                col_color.apply()
-            else:
-                # apply rows
-                utils.select_row_index(calib, row_indices.pop())
-                row_color.apply()
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: colors.Color,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        self.i = 0
+        indices = [i for i in range(calib.n_rows)]
+        random.shuffle(indices)
+        self.indices = indices
 
-            time.sleep(sleep_time)
-    else:
-        raise NotImplementedError
+    def step(self) -> None:
+        utils.select_row_index(self.calib, self.indices[self.i])
+        self.color.apply()
+        self.i += 1
+
+    @property
+    def n_steps(self) -> int:
+        return self.calib.n_rows
 
 
 def pattern_cells(
@@ -335,22 +308,19 @@ def interweave_patterns(patterns: list[Pattern]) -> None:
     # steps_taken = [0] * len(patterns)
 
     # the pattern with minimum number of steps will determine the number of blocks of steps taken by each pattern
-    min_steps = min(n_steps)
+    # min_steps = min(n_steps)
 
-    n_blocks = [math.ceil(n / min_steps) for n in n_steps]
-    print(f"Number of blocks for each pattern: {n_blocks}")
-    while not all(n == 0 for n in n_blocks):
-        # find the pattern with the maximum number of blocks left
-        max_index = n_blocks.index(max(n_blocks))
+    # n_blocks = [math.ceil(n / min_steps) for n in n_steps]
+    # print(f"Number of blocks for each pattern: {n_blocks}")
+    while not all(n == 0 for n in n_steps):
+        # pick a probability of stepping a pattern according to the number of steps left
+        n_total = sum(n_steps)
+        probs = [n / n_total for n in n_steps]
 
-        # step that pattern the required number of times
-        for _ in range(
-            min(
-                min_steps,
-                patterns[max_index].n_left,
-            )
-        ):
-            patterns[max_index].step()
-        n_blocks[max_index] -= 1
+        # pick a pattern to step
+        index = random.choices(range(len(patterns)), weights=probs, k=1)[0]
+        patterns[index].step()
+        n_steps[index] -= 1
+        print(n_steps)
 
-    print("All patterns finished stepping.")
+    # print("All patterns finished stepping.")

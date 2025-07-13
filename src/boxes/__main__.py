@@ -77,26 +77,25 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
-    c = ["red", "green", "blue", "yellow", "brick", "lime", "teal"]
-    # patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "red")).step_all()
-    # patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "blue")).step_all()
+    # c = ["red", "green", "blue", "yellow", "brick", "lime", "teal"]
 
-    while True:
-        next_color_1 = c.pop(0)
-        c.append(next_color_1)
-        next_color_2 = c.pop(0)
-        c.append(next_color_2)
+    # while True:
+    #     next_color_1 = c.pop(0)
+    #     c.append(next_color_1)
+    #     next_color_2 = c.pop(0)
+    #     c.append(next_color_2)
 
-        patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_1)).step_all()
-        patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_2)).step_all()
+    #     patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_1)).step_all()
+    #     patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_2)).step_all()
 
-    # p: list[patterns.Pattern] = [
-    #     patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "red")),
-    #     patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "blue")),
-    #     # patterns.PaletteTest1(calib),
-    # ]
+    p: list[patterns.Pattern] = [
+        patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "light_red_1")),
+        patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "light_blue_1")),
+        # patterns.ColumnLights(calib, colors.StandardColor.from_name(calib, "yellow")),
+        # patterns.RowLights(calib, colors.StandardColor.from_name(calib, "green")),
+    ]
 
-    # patterns.interweave_patterns(p)
+    patterns.interweave_patterns(p)
 
     # while True:
     #     inward_spiral(calib, RandomChangingColor(calib))
