@@ -318,84 +318,6 @@ if TYPE_CHECKING:
     _row_lights: Pattern = RowLights.__new__(RowLights)
 
 
-# def pattern_cells(
-#     calib: CalibrationData,
-#     color: colors.Color,
-#     sleep_time: float = 0.1,
-# ) -> None:
-#     """Apply a color to each cell in the grid."""
-#     # coords = [(i, j) for i in range(calib.n_cols) for j in range(calib.n_rows)]
-#     # random.shuffle(coords)
-
-#     def _color(i: int, j: int) -> tuple[int, int, int]:
-#         # color.uv(*ij_2_uv(calib, i, j))
-#         # color.wq(*ij_2_wq(calib, i, j))
-#         return color.rgb()
-
-#     coords_with_probs_and_color = [(i, j, _color(i, j)) for i in range(calib.n_cols) for j in range(calib.n_rows)]
-
-#     def _color_distance(c1: tuple[int, int, int], c2: tuple[int, int, int]) -> float:
-#         """Calculate the Euclidean distance between two RGB colors."""
-#         return math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2)
-
-#     # group by color
-#     coords_with_probs: dict[tuple[int, int, int], list[tuple[int, int]]] = {}
-#     distance_tol = 10
-#     for i, j, color_rgb in coords_with_probs_and_color:
-#         # Check if the color is already in the dictionary
-#         found = False
-#         for existing_color in coords_with_probs:
-#             if _color_distance(existing_color, color_rgb) < distance_tol:
-#                 coords_with_probs[existing_color].append((i, j))
-#                 found = True
-#                 break
-#         if not found:
-#             coords_with_probs[color_rgb] = [(i, j)]
-
-#     # shuffle the colors in each group
-#     for color_rgb in coords_with_probs:
-#         random.shuffle(coords_with_probs[color_rgb])
-
-#     # max_prob = max(prob for _, _, prob in coords_with_probs)
-#     # # Normalize probabilities to be between 0 and 1
-#     # coords_with_probs = deque(
-#     #     (i, j, prob / max_prob) for i, j, prob in coords_with_probs
-#     # )
-
-#     # Group by color
-
-#     # Sort by probability in descending order
-#     # coords_with_probs = deque(
-#     #     sorted(coords_with_probs, key=lambda x: x[2], reverse=True)
-#     # )
-
-#     # # Shuffle the coordinates with probabilities
-#     # random.shuffle(coords_with_probs)
-
-#     # coords = []
-#     # while coords_with_probs:
-#     #     i, j, prob = coords_with_probs.popleft()
-#     #     if random.random() < prob:
-#     #         coords.append((i, j))
-#     #     else:
-#     #         # Reinsert the item at the end of the deque with the same probability
-#     #         coords_with_probs.append((i, j, prob))
-
-#     # for i, j in coords:
-#     #     click(*cell_coords(calib, (i, j)))
-#     #     color.uv(*ij_2_uv(calib, i, j))
-#     #     color.wq(*ij_2_wq(calib, i, j))
-#     #     color.apply()
-#     #     pyautogui.sleep(sleep_time)
-
-#     for color_rgb, coords in coords_with_probs.items():
-#         for i, j in coords:
-#             click(*utils.cell_coords(calib, (i, j)))
-#             # print(f"Applying color {color_rgb} to cell ({i}, {j})")
-#             colors.ArbitraryColor(calib, *color_rgb).apply()
-#             pyautogui.sleep(sleep_time)
-
-
 class RandomCells(_PatternBase, _1DMixin):
     name = "random_cells"
 
@@ -418,6 +340,10 @@ class RandomCells(_PatternBase, _1DMixin):
             self.color.apply()
 
         return _step
+
+
+if TYPE_CHECKING:
+    _random_cells: Pattern = RandomCells.__new__(RandomCells)
 
 
 class GaussianCells(_PatternBase, _1DMixin):
@@ -491,19 +417,12 @@ class GaussianCells(_PatternBase, _1DMixin):
 if TYPE_CHECKING:
     _gaussian_cells: Pattern = GaussianCells.__new__(GaussianCells)
 
+################################################################################
+
 
 def interweave_patterns(patterns: list[Pattern]) -> None:
     """Run all patterns in the list, interleaving their steps. Find out how many steps each pattern has,
-    and scale the number of steps taken by each pattern such that they all finish roughtly at the same time."""
-    # n_steps = [p.n_steps for p in patterns]
-    # print(f"Number of steps in each pattern: {n_steps}")
-    # steps_taken = [0] * len(patterns)
-
-    # the pattern with minimum number of steps will determine the number of blocks of steps taken by each pattern
-    # min_steps = min(n_steps)
-
-    # n_blocks = [math.ceil(n / min_steps) for n in n_steps]
-    # print(f"Number of blocks for each pattern: {n_blocks}")
+    and scale the number of steps taken by each pattern such that they all finish roughly at the same time."""
     steps: dict[str, list[PatternStep]] = {p.name: p.all_steps() for p in patterns}
     while not all(len(s) == 0 for s in steps.values()):
         # pick a probability of stepping a pattern according to the number of steps left
@@ -513,5 +432,3 @@ def interweave_patterns(patterns: list[Pattern]) -> None:
         name: str = random.choices(list(steps.keys()), weights=weights, k=1)[0]
         step = steps[name].pop(0)
         step()
-
-    # print("All patterns finished stepping.")

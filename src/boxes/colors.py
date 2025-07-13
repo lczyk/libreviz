@@ -610,46 +610,6 @@ class ArbitraryColor(Color):
 if TYPE_CHECKING:
     _arbitrary_color: Color = ArbitraryColor.__new__(ArbitraryColor)
 
-
-# class RadialColor(Color):
-#     def __init__(
-#         self,
-#         calib: CalibrationData,
-#         *,
-#         center: "tuple[int, int, int]",
-#         edge: "tuple[int, int, int]",
-#         radius: float = 1.0,
-#     ) -> None:
-#         super().__init__()
-#         self.calib = calib
-#         self.center = center
-#         self.edge = edge
-#         self.radius = radius
-
-#     def rgb(self) -> tuple[int, int, int]:
-#         r = math.sqrt(self.w**2 + self.q**2)
-#         if r < self.radius:
-#             alpha = r / self.radius
-#             color = (
-#                 int(self.center[0] * (1 - alpha) + self.edge[0] * alpha),
-#                 int(self.center[1] * (1 - alpha) + self.edge[1] * alpha),
-#                 int(self.center[2] * (1 - alpha) + self.edge[2] * alpha),
-#             )
-
-#         else:
-#             # If the radius is greater than self.radius, just apply the edge color
-#             color = self.edge
-
-#         return color
-
-#     def _apply(self) -> None:
-#         ArbitraryColor(self.calib, *self.rgb())._apply()
-
-#     def apply(self) -> None:
-#         """Apply a radial color based on the center and edge coordinates."""
-#         apply_or_recent(self.calib, self.rgb(), self._apply)
-
-
 def reset_all_colors(calib: CalibrationData) -> None:
     """Reset all colors in the grid to 'No Fill'."""
     utils.select_range(calib, ("A", 1), ("S", 52))
