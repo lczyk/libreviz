@@ -251,7 +251,11 @@ class PaletteTest2(_PatternBase, _1DMixin):
                 (chr(ord("A") + i * self.d_cols), j * self.d_rows + 1),
                 (chr(ord("A") + i * self.d_cols + (self.d_cols - 1)), j * self.d_rows + (self.d_rows - 1) + 1),
             )
-            colors.ArbitraryColor(self.calib, *rgb).apply()
+            colors.ArbitraryColor(
+                self.calib,
+                *rgb,
+                coerce=True,
+            ).apply()
 
         return _step
 

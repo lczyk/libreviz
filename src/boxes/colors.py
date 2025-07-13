@@ -5,11 +5,6 @@ from typing import TYPE_CHECKING, Callable, Protocol
 
 import pyautogui
 
-# if __package__ is None or __package__ == "":
-#     import utils
-#     from calibrate import CalibrationData
-#     from patched_click import click
-# else:
 from . import utils
 from .calibrate import CalibrationData
 from .patched_click import click
@@ -468,12 +463,11 @@ class StandardColor:
         """Create a StandardColor from its name."""
         return cls(calib, *STANDARD_COLORS_BY_NAME[name][0])
 
+    def _apply(self) -> None:
+        click(*standard_color_coords(self.calib, (self.ci, self.cj)))
+
     def apply(self) -> None:
-        apply_or_recent(
-            self.calib,
-            self.rgb(),
-            lambda: click(*standard_color_coords(self.calib, (self.ci, self.cj))),
-        )
+        apply_or_recent(self.calib, self.rgb(), self._apply)
 
 
 if TYPE_CHECKING:
@@ -564,44 +558,60 @@ class ArbitraryColor(Color):
         r: int,
         g: int,
         b: int,
+        *,
+        coerce: bool = False,
         cache: bool = True,
     ) -> None:
         super().__init__()
         self.calib = calib
         if not isinstance(r, int) or not isinstance(g, int) or not isinstance(b, int):
             raise TypeError("RGB values must be integers")
-        self.r = r
-        self.g = g
-        self.b = b
+        if coerce:
+            # Find the closest standard color to the given RGB values
+            self.r, self.g, self.b = min(
+                STANDARD_COLORS_BY_RGB.keys(),
+                key=lambda c: color_distance(c, (r, g, b)),
+            )
+            self.standard_name = STANDARD_COLORS_BY_RGB[(self.r, self.g, self.b)][0]
+        else:
+            # Use the provided RGB values directly
+            self.r, self.g, self.b = r, g, b
+            self.standard_name = ""
         self.cache = cache
 
     def rgb(self) -> "tuple[int, int, int]":
         return (self.r, self.g, self.b)
 
     def _apply(self) -> None:
-        # TODO: check if we're in standard colors
-        click(*self.calib.custom_color)
-        # time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
-        pyautogui.press("delete")
-        pyautogui.press("delete")
-        pyautogui.press("delete")
-        time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
-        pyautogui.typewrite(f"{self.r}")
-        # time.sleep(10.0)
-        pyautogui.press("tab")
-        # pyautogui.keyDown("ctrl")
-        # pyautogui.typewrite("a")
-        # pyautogui.keyUp("ctrl")
-        # time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
-        pyautogui.typewrite(f"{self.g}")
-        pyautogui.press("tab")
-        # pyautogui.keyDown("ctrl")
-        # pyautogui.typewrite("a")
-        # pyautogui.keyUp("ctrl")
-        # time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
-        pyautogui.typewrite(f"{self.b}")
-        pyautogui.press("enter")
-        time.sleep(pyautogui.DARWIN_CATCH_UP_TIME * 2)
+        if self.standard_name != "":
+            # If we're using a standard color, apply it directly
+            color = StandardColor.from_name(self.calib, self.standard_name)
+            color._apply()
+
+        else:
+            # TODO: check if we're in standard colors
+            click(*self.calib.custom_color)
+            # time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+            pyautogui.press("delete")
+            pyautogui.press("delete")
+            pyautogui.press("delete")
+            time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+            pyautogui.typewrite(f"{self.r}")
+            # time.sleep(10.0)
+            pyautogui.press("tab")
+            # pyautogui.keyDown("ctrl")
+            # pyautogui.typewrite("a")
+            # pyautogui.keyUp("ctrl")
+            # time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+            pyautogui.typewrite(f"{self.g}")
+            pyautogui.press("tab")
+            # pyautogui.keyDown("ctrl")
+            # pyautogui.typewrite("a")
+            # pyautogui.keyUp("ctrl")
+            # time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+            pyautogui.typewrite(f"{self.b}")
+            pyautogui.press("enter")
+            time.sleep(pyautogui.DARWIN_CATCH_UP_TIME * 2)
 
     def apply(self) -> None:
         apply_or_recent(self.calib, self.rgb(), self._apply, cache=self.cache)
@@ -609,6 +619,7 @@ class ArbitraryColor(Color):
 
 if TYPE_CHECKING:
     _arbitrary_color: Color = ArbitraryColor.__new__(ArbitraryColor)
+
 
 def reset_all_colors(calib: CalibrationData) -> None:
     """Reset all colors in the grid to 'No Fill'."""
