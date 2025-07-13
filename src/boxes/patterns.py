@@ -16,11 +16,26 @@ class Pattern(Protocol):
         """Perform a single step of the pattern."""
         ...
 
-    def step_all(self) -> None: ...
+    def advance(self) -> None:
+        """Advance the internal state"""
+        ...
+
+    def step_all(self) -> None:
+        """Perform all steps of the pattern."""
+        ...
 
     @property
     def n_steps(self) -> int:
         """Return the number of steps in the pattern."""
+        ...
+
+    @property
+    def current_step(self) -> int:
+        """Return the current step index."""
+        ...
+
+    def reset(self) -> None:
+        """Reset the pattern to its initial state."""
         ...
 
 
@@ -30,6 +45,7 @@ class _PatternBase:
         """Perform all steps of the pattern."""
         for _ in range(self.n_steps):
             self.step()
+            self.advance()
 
     @no_type_check
     def __len__(self) -> int:
@@ -37,7 +53,68 @@ class _PatternBase:
         return self.n_steps
 
 
-class InwardSpiral(_PatternBase):
+class _1DMixin:
+    """Mixin for 1D patterns that have a single index."""
+
+    i: int
+    Ni: int
+
+    def __init__(self, Ni: int) -> None:
+        print(f"Initializing 1D pattern with {Ni} steps.")
+        self.Ni = Ni
+        self.i = 0
+
+    def reset(self) -> None:
+        self.i = 0
+
+    def advance(self) -> None:
+        self.i += 1
+
+    @property
+    def current_step(self) -> int:
+        return self.i
+
+    @property
+    def n_steps(self) -> int:
+        return self.Ni
+
+
+class _2DMixin:
+    """Mixin for 2D patterns that have two indices."""
+
+    i: int
+    j: int
+    Ni: int
+    Nj: int
+
+    def __init__(self, Ni: int, Nj: int) -> None:
+        self.Ni = Ni
+        self.Nj = Nj
+        self.i = 0
+        self.j = 0
+
+    def reset(self) -> None:
+        self.i = 0
+        self.j = 0
+
+    def advance(self) -> None:
+        self.i += 1
+        if self.i >= self.Ni:
+            self.i = 0
+            self.j += 1
+            if self.j >= self.Nj:
+                self.j = 0
+
+    @property
+    def current_step(self) -> int:
+        return self.i + self.j * self.Ni
+
+    @property
+    def n_steps(self) -> int:
+        return self.Ni * self.Nj
+
+
+class InwardSpiral(_PatternBase, _1DMixin):
     name = "inward_spiral"
 
     def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
@@ -45,24 +122,20 @@ class InwardSpiral(_PatternBase):
         self.color = color
         _nodes = "A:1,S:1,S:52,A:52,A:3,Q:3,Q:50,C:50,C:5,O:5,O:48,E:48,E:7,M:7,M:46,G:46,G:9,K:9,K:44,I:44,I:11"
         self.nodes = _nodes.split(",")
-        self.i = 0
+        super().__init__(len(self.nodes) - 1)
+        self.reset()
 
     def step(self) -> None:
         n1, n2 = self.nodes[self.i], self.nodes[self.i + 1]
         utils.select_range(self.calib, n1, n2)
         self.color.apply()
-        self.i += 1
-
-    @property
-    def n_steps(self) -> int:
-        return len(self.nodes) - 1
 
 
 if TYPE_CHECKING:
     _inward_spiral: Pattern = InwardSpiral.__new__(InwardSpiral)
 
 
-class OutwardSpiral(_PatternBase):
+class OutwardSpiral(_PatternBase, _1DMixin):
     name = "outward_spiral"
 
     def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
@@ -70,17 +143,13 @@ class OutwardSpiral(_PatternBase):
         self.color = color
         _nodes = "J:43,J:10,H:10,H:45,L:45,L:8,F:8,F:47,N:47,N:6,D:6,D:49,P:49,P:4,B:4,B:51,R:51,R:2,A:2"
         self.nodes = _nodes.split(",")
-        self.i = 0
+        super().__init__(len(self.nodes) - 1)
+        self.reset()
 
     def step(self) -> None:
         n1, n2 = self.nodes[self.i], self.nodes[self.i + 1]
         utils.select_range(self.calib, n1, n2)
         self.color.apply()
-        self.i += 1
-
-    @property
-    def n_steps(self) -> int:
-        return len(self.nodes) - 1
 
 
 if TYPE_CHECKING:
@@ -93,13 +162,13 @@ if TYPE_CHECKING:
 #             # print(f"Applying color ({i}, {j})")
 
 
-class PaletteTest1(_PatternBase):
+class PaletteTest1(_PatternBase, _2DMixin):
     name = "palette_test_1"
 
     def __init__(self, calib: CalibrationData) -> None:
         self.calib = calib
-        self.i = 0
-        self.j = 0
+        super().__init__(calib.n_color_cols, calib.n_color_rows)
+        self.reset()
 
     def step(self) -> None:
         calib = self.calib
@@ -121,51 +190,73 @@ class PaletteTest1(_PatternBase):
             cache=False,
         ).apply()
 
-        # Update indices for the next step
-        self.i += 1
-        if self.i >= calib.n_color_cols:
-            self.i = 0
-            self.j += 1
-            if self.j >= calib.n_color_rows:
-                self.j = 0
-
-    @property
-    def n_steps(self) -> int:
-        return self.calib.n_color_rows * self.calib.n_color_cols
-
 
 if TYPE_CHECKING:
     _palette_test_1: Pattern = PaletteTest1.__new__(PaletteTest1)
 
+# def palette_test_2(calib: CalibrationData) -> None:
+#     """Apply colors in a pattern to the palette."""
 
-def palette_test_2(calib: CalibrationData) -> None:
-    """Apply colors in a pattern to the palette."""
+#     def _xy_to_rgb(x: float, y: float) -> tuple[int, int, int]:
+#         """Convert (x, y) coordinates to RGB values."""
+#         r = int(255 * x)
+#         g = int(255 * y)
+#         b = int(255 * (1 - x) * (1 - y))
+#         return r, g, b
 
-    def _xy_to_rgb(x: float, y: float) -> tuple[int, int, int]:
+#     D_ROWS = 4
+#     D_COLS = 2
+#     N_COLS = calib.n_cols // D_COLS
+#     N_ROWS = calib.n_rows // D_ROWS
+
+#     coords = [(i, j) for i in range(N_COLS) for j in range(N_ROWS)]
+#     # random.shuffle(coords)
+
+#     for i, j in coords:
+#         rgb = _xy_to_rgb(i / (N_COLS - 1), j / (N_ROWS - 1))
+#         utils.select_range(
+#             calib,
+#             # (chr(ord("A") + i * D), j * D + 1),
+#             # (chr(ord("A") + i * D + (D - 1)), j * D + (D - 1) + 1),
+#             (chr(ord("A") + i * D_COLS), j * D_ROWS + 1),
+#             (chr(ord("A") + i * D_COLS + (D_COLS - 1)), j * D_ROWS + (D_ROWS - 1) + 1),
+#         )
+#         colors.ArbitraryColor(calib, *rgb).apply()
+
+
+class PaletteTest2(_PatternBase, _1DMixin):
+    name = "palette_test_2"
+
+    def __init__(self, calib: CalibrationData) -> None:
+        self.calib = calib
+        self.d_rows = 4
+        self.d_cols = 2
+        Ni = calib.n_cols // self.d_cols
+        Nj = calib.n_rows // self.d_rows
+        self.coords = [(i, j) for i in range(Ni) for j in range(Nj)]
+
+        super().__init__(len(self.coords))
+        self.reset()
+
+    def _xy_to_rgb(self, x: float, y: float) -> tuple[int, int, int]:
         """Convert (x, y) coordinates to RGB values."""
         r = int(255 * x)
         g = int(255 * y)
         b = int(255 * (1 - x) * (1 - y))
         return r, g, b
 
-    D_ROWS = 4
-    D_COLS = 2
-    N_COLS = calib.n_cols // D_COLS
-    N_ROWS = calib.n_rows // D_ROWS
-
-    coords = [(i, j) for i in range(N_COLS) for j in range(N_ROWS)]
-    # random.shuffle(coords)
-
-    for i, j in coords:
-        rgb = _xy_to_rgb(i / (N_COLS - 1), j / (N_ROWS - 1))
-        utils.select_range(
-            calib,
-            # (chr(ord("A") + i * D), j * D + 1),
-            # (chr(ord("A") + i * D + (D - 1)), j * D + (D - 1) + 1),
-            (chr(ord("A") + i * D_COLS), j * D_ROWS + 1),
-            (chr(ord("A") + i * D_COLS + (D_COLS - 1)), j * D_ROWS + (D_ROWS - 1) + 1),
+    def step(self) -> None:
+        i, j = self.coords[self.i]
+        rgb = self._xy_to_rgb(
+            i / (self.calib.n_cols // self.d_cols - 1),
+            j / (self.calib.n_rows // self.d_rows - 1),
         )
-        colors.ArbitraryColor(calib, *rgb).apply()
+        utils.select_range(
+            self.calib,
+            (chr(ord("A") + i * self.d_cols), j * self.d_rows + 1),
+            (chr(ord("A") + i * self.d_cols + (self.d_cols - 1)), j * self.d_rows + (self.d_rows - 1) + 1),
+        )
+        colors.ArbitraryColor(self.calib, *rgb).apply()
 
 
 class ColumnLights(_PatternBase):
@@ -178,26 +269,33 @@ class ColumnLights(_PatternBase):
     ) -> None:
         self.calib = calib
         self.color = color
-        self.i = 0
-        indices = [i for i in range(calib.n_cols)]
-        random.shuffle(indices)
-        self.indices = indices
+        self.reset()
 
     def step(self) -> None:
         utils.select_column_index(self.calib, self.indices[self.i])
         self.color.apply()
+
+    def advance(self) -> None:
         self.i += 1
+
+    def reset(self) -> None:
+        self.i = 0
+        self.indices = random.sample(range(self.calib.n_cols), self.calib.n_cols)
 
     @property
     def n_steps(self) -> int:
         return self.calib.n_cols
+
+    @property
+    def current_step(self) -> int:
+        return self.i
 
 
 if TYPE_CHECKING:
     _column_lights: Pattern = ColumnLights.__new__(ColumnLights)
 
 
-class RowLights(_PatternBase):
+class RowLights(_PatternBase, _1DMixin):
     name = "row_lights"
 
     def __init__(
@@ -220,6 +318,10 @@ class RowLights(_PatternBase):
     @property
     def n_steps(self) -> int:
         return self.calib.n_rows
+
+
+if TYPE_CHECKING:
+    _row_lights: Pattern = RowLights.__new__(RowLights)
 
 
 def pattern_cells(
@@ -320,6 +422,7 @@ def interweave_patterns(patterns: list[Pattern]) -> None:
         # pick a pattern to step
         index = random.choices(range(len(patterns)), weights=probs, k=1)[0]
         patterns[index].step()
+        patterns[index].advance()
         n_steps[index] -= 1
         print(n_steps)
 

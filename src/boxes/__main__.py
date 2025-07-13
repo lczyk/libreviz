@@ -88,19 +88,17 @@ def run(calib: CalibrationData) -> None:
     #     patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_1)).step_all()
     #     patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_2)).step_all()
 
-    p: list[patterns.Pattern] = [
-        patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "light_red_1")),
-        patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "light_blue_1")),
-        # patterns.ColumnLights(calib, colors.StandardColor.from_name(calib, "yellow")),
-        # patterns.RowLights(calib, colors.StandardColor.from_name(calib, "green")),
-    ]
+    # p: list[patterns.Pattern] = [
+    #     # patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "light_red_1")),
+    #     # patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "light_blue_1")),
+    #     patterns.ColumnLights(calib, colors.StandardColor.from_name(calib, "light_gold_1")),
+    #     patterns.RowLights(calib, colors.StandardColor.from_name(calib, "dark_lime_1")),
+    # ]
 
-    patterns.interweave_patterns(p)
+    # patterns.interweave_patterns(p)
 
-    # while True:
-    #     inward_spiral(calib, RandomChangingColor(calib))
-    #     outward_spiral(calib, RandomOnceColor(calib))
-
+    # patterns.PaletteTest1(calib).step_all()
+    patterns.PaletteTest2(calib).step_all()
     # pattern_cells(calib, RandomChangingColor(calib), sleep_time=0.0)
     # pattern_cells(
     #     calib,
