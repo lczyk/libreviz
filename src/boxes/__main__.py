@@ -78,6 +78,14 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
+    patterns.Icicles(
+        calib,
+        colors.StandardColor.from_name(calib, "light_blue_1"),
+        segment_size=10,
+    ).step_all()
+
+    sys.exit()
+
     c1 = deque(colors.TEALS)
     c2 = deque(colors.REDS)
 

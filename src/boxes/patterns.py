@@ -44,7 +44,7 @@ class _PatternBase:
     _id: int
     _name_prefix: str
 
-    def __init__(self) -> None:
+    def _init_id(self) -> None:
         self._id = random.randint(1, 9999)
 
     @no_type_check
@@ -78,8 +78,7 @@ class _1DBase:
     i: int
     Ni: int
 
-    def __init__(self, Ni: int) -> None:
-        super().__init__()
+    def _init_1d_base(self, Ni: int) -> None:
         self.Ni = Ni
         self.i = 0
 
@@ -106,7 +105,7 @@ class _2DBase:
     Ni: int
     Nj: int
 
-    def __init__(self, Ni: int, Nj: int) -> None:
+    def _init_2d_base(self, Ni: int, Nj: int) -> None:
         self.Ni = Ni
         self.Nj = Nj
         self.i = 0
@@ -144,7 +143,8 @@ class InwardSpiral(_1DBase, _PatternBase):
         self.color = color
         _nodes = "A:1,S:1,S:52,A:52,A:3,Q:3,Q:50,C:50,C:5,O:5,O:48,E:48,E:7,M:7,M:46,G:46,G:9,K:9,K:44,I:44,I:11"
         self.nodes = _nodes.split(",")
-        super().__init__(len(self.nodes) - 1)
+        self._init_1d_base(len(self.nodes) - 1)
+        self._init_id()
         self.reset()
 
     def step(self) -> PatternStep:
@@ -169,7 +169,8 @@ class OutwardSpiral(_1DBase, _PatternBase):
         self.color = color
         _nodes = "J:43,J:10,H:10,H:45,L:45,L:8,F:8,F:47,N:47,N:6,D:6,D:49,P:49,P:4,B:4,B:51,R:51,R:2,A:2"
         self.nodes = _nodes.split(",")
-        super().__init__(len(self.nodes) - 1)
+        self._init_1d_base(len(self.nodes) - 1)
+        self._init_id()
         self.reset()
 
     def step(self) -> PatternStep:
@@ -197,7 +198,8 @@ class PaletteTest1(_2DBase, _PatternBase):
 
     def __init__(self, calib: CalibrationData) -> None:
         self.calib = calib
-        super().__init__(calib.n_color_cols, calib.n_color_rows)
+        self._init_2d_base(calib.n_color_cols, calib.n_color_rows)
+        self._init_id()
         self.reset()
 
     def step(self) -> PatternStep:
@@ -303,7 +305,8 @@ class Palette2(_1DBase, _PatternBase):
         else:
             self.fun = fun
 
-        super().__init__(len(self.coords) + len(self.extra_coords))
+        self._init_1d_base(len(self.coords) + len(self.extra_coords))
+        self._init_id()
         self.reset()
 
     def _xy_to_rgb(self, x: float, y: float) -> tuple[int, int, int]:
@@ -372,7 +375,8 @@ class Lights(_1DBase, _PatternBase):
         else:
             self.f = utils.select_column_index
             N = calib.n_cols
-        super().__init__(N)
+        self._init_1d_base(N)
+        self._init_id()
         self.reset()
 
     def step(self) -> PatternStep:
@@ -399,7 +403,8 @@ class RandomCells(_1DBase, _PatternBase):
     def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
         self.calib = calib
         self.color = color
-        super().__init__(calib.n_cols * calib.n_rows)
+        self._init_1d_base(calib.n_cols * calib.n_rows)
+        self._init_id()
         self.reset()
 
     def reset(self) -> None:
@@ -436,7 +441,8 @@ class GaussianCells(_1DBase, _PatternBase):
         self.color_inner = inner
         self.color_outer = outer
         self.radius = radius
-        super().__init__(calib.n_cols * calib.n_rows)
+        self._init_1d_base(calib.n_cols * calib.n_rows)
+        self._init_id()
         self.reset()
 
     def reset(self) -> None:
@@ -533,7 +539,8 @@ class Boxes(_1DBase, _PatternBase):
             self.boxes.append(((i1, j1), (i2, j2)))
             _mark_cells_as_covered(cells_map, i1, j1, i2, j2)
 
-        super().__init__(len(self.boxes))
+        self._init_1d_base(len(self.boxes))
+        self._init_id()
         self.reset()
 
     def step(self) -> PatternStep:
@@ -552,6 +559,68 @@ class Boxes(_1DBase, _PatternBase):
 
 if TYPE_CHECKING:
     _boxes: Pattern = Boxes.__new__(Boxes)
+
+
+class Icicles(_1DBase, _PatternBase):
+    _name_prefix = "icicles"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        # direction: Literal["up", "down", "left", "right"],
+        color: colors.Color,
+        segment_size: int = 3,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        self.f: Callable[[CalibrationData, int], None]
+        self.segment_size = segment_size
+        self._init_id()
+        self.reset()
+
+    def reset(self) -> None:
+        super().reset()
+        self.segments: list[tuple[int, int, int]] = []  # column, row_start, row_end
+        column_lengths = [0] * self.calib.n_cols
+        while not all(cl >= self.calib.n_rows for cl in column_lengths):
+            # roll a random column
+            non_full_columns = [i for i in range(self.calib.n_cols) if not column_lengths[i] >= self.calib.n_rows]
+            i = random.choice(non_full_columns)
+            segment_length = self.segment_size
+            if column_lengths[i] + segment_length >= self.calib.n_rows:
+                # last icicle in this column
+                segment_length = self.calib.n_rows - column_lengths[i]
+
+            self.segments.append(
+                (
+                    i,
+                    column_lengths[i],
+                    column_lengths[i] + segment_length - 1,
+                )
+            )
+
+            column_lengths[i] += segment_length
+
+        self._init_1d_base(len(self.segments))
+
+    def step(self) -> PatternStep:
+        i = self.i
+
+        def _step() -> None:
+            col, row_start, row_end = self.segments[i]
+            utils.select_range(
+                self.calib,
+                (chr(ord("A") + col), row_start + 1),
+                (chr(ord("A") + col), row_end + 1),
+            )
+            self.color.apply()
+
+        return _step
+
+
+if TYPE_CHECKING:
+    _icicles: Pattern = Icicles.__new__(Icicles)
+
 
 ################################################################################
 
