@@ -51,6 +51,7 @@ def apply_or_recent(
     *,
     tolerance: int = 0,  # tolerance for color matching
     cache: bool = True,
+    _finally: Callable[[], None] | None = None,
 ) -> None:
     if not cache:
         # if cache is disabled act as if the color is not in the recent colors
@@ -77,6 +78,9 @@ def apply_or_recent(
             time.sleep(pyautogui.DARWIN_CATCH_UP_TIME * 2)
             f()
             RECENT_COLORS.appendleft(color_rbg)
+
+    if _finally:
+        _finally()
 
 
 STANDARD_COLORS_BY_NAME: dict[ColorName, tuple[ColorIJ, ColorRGB]] = {
@@ -660,11 +664,11 @@ if TYPE_CHECKING:
     _arbitrary_color: Color = ArbitraryColor.__new__(ArbitraryColor)
 
 
-class StandardPaletteColor(Color):
+class StandardCyclerColor(Color):
     def __init__(
         self,
         calib: CalibrationData,
-        palette: list[str],
+        palette: tuple[ColorName, ...],
         *,
         offset: int = 0,
         cache: bool = True,
@@ -687,15 +691,23 @@ class StandardPaletteColor(Color):
         color_name = self.palette[self.current_index]
         color = StandardColor.from_name(self.calib, color_name)
         color._apply()
+
+    def _finally(self) -> None:
         self.current_index = (self.current_index + 1) % len(self.palette)
 
     def apply(self) -> None:
         """Apply the current color in the palette."""
-        apply_or_recent(self.calib, self.rgb(), self._apply, cache=self.cache)
+        apply_or_recent(
+            self.calib,
+            self.rgb(),
+            self._apply,
+            cache=self.cache,
+            _finally=self._finally,
+        )
 
 
 if TYPE_CHECKING:
-    _standard_palette_color: Color = StandardPaletteColor.__new__(StandardPaletteColor)
+    _standard_palette_color: Color = StandardCyclerColor.__new__(StandardCyclerColor)
 
 
 def reset_all_colors(calib: CalibrationData) -> None:
