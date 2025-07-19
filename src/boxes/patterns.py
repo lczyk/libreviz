@@ -213,10 +213,8 @@ class DenseSpiral(_1DBase, _PatternBase):
         return _step
 
 
-# def palette_test_1(calib: CalibrationData) -> None:
-#     for j in range(calib.n_color_rows):
-#         for i in range(calib.n_color_cols):
-#             # print(f"Applying color ({i}, {j})")
+if TYPE_CHECKING:
+    _dense_spiral: Pattern = DenseSpiral.__new__(DenseSpiral)
 
 
 class PaletteTest1(_2DBase, _PatternBase):
@@ -694,6 +692,86 @@ class Icicles(_1DBase, _PatternBase):
 
 if TYPE_CHECKING:
     _icicles: Pattern = Icicles.__new__(Icicles)
+
+
+class Snake(_1DBase, _PatternBase):
+    """Snake down the screen: A1->A52, then one row down and back up: B52->B1, then C1->C52, etc."""
+
+    _name_prefix = "snake"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: colors.Color,
+        width: int = 2,
+        segment_size: int = 4,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        self.segment_size = segment_size
+        self.width = width
+        self._init_id()
+        self.reset()
+
+    def reset(self) -> None:
+        super().reset()
+
+        self.segments: list[tuple[tuple[int, int], tuple[int, int]]] = []
+        right = True
+        for j in range(0, self.calib.n_rows, self.width):
+            if right:
+                # left to right
+                for i in range(0, self.calib.n_cols, self.segment_size):
+                    i1 = i
+                    i2 = min(i + self.segment_size - 1, self.calib.n_cols - 1)
+                    if i2 < i1:
+                        continue
+                    self.segments.append(
+                        (
+                            (
+                                i1,
+                                min(j, self.calib.n_rows - 1),
+                            ),
+                            (
+                                i2,
+                                min(j + self.width - 1, self.calib.n_rows - 1),
+                            ),
+                        )
+                    )
+            else:
+                # right to left
+                for i in range(self.calib.n_cols - 1, -1, -self.segment_size):
+                    i1 = max(0, i - self.segment_size + 1)
+                    i2 = i
+                    if i2 < i1:
+                        continue
+                    self.segments.append(
+                        (
+                            (
+                                i1,
+                                min(j, self.calib.n_rows - 1),
+                            ),
+                            (i2, min(j + self.width - 1, self.calib.n_rows - 1)),
+                        )
+                    )
+            right = not right
+
+        self._init_1d_base(len(self.segments))
+        # print(f"Snake segments: {self.segments}")
+
+    def step(self) -> PatternStep:
+        i = self.i
+        (i1, j1), (i2, j2) = self.segments[i]
+
+        def _step() -> None:
+            utils.select_range(
+                self.calib,
+                (chr(ord("A") + i1), j1 + 1),
+                (chr(ord("A") + i2), j2 + 1),
+            )
+            self.color.apply()
+
+        return _step
 
 
 ################################################################################
