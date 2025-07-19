@@ -1,12 +1,15 @@
 import math
 import random
+from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Literal, Protocol, no_type_check
 
-from . import colors, utils
+from . import cell, colors
 from .calibrate import CalibrationData
 from .patched_click import click
 
 PatternStep = Callable[[], None]
+
+from PIL import Image as PILImage
 
 
 class Pattern(Protocol):
@@ -151,7 +154,7 @@ class InwardSpiral(_1DBase, _PatternBase):
         n1, n2 = self.nodes[self.i], self.nodes[self.i + 1]
 
         def _step() -> None:
-            utils.select_range(self.calib, n1, n2)
+            cell.select_range(self.calib, n1, n2)
             self.color.apply()
 
         return _step
@@ -177,7 +180,7 @@ class OutwardSpiral(_1DBase, _PatternBase):
         n1, n2 = self.nodes[self.i], self.nodes[self.i + 1]
 
         def _step() -> None:
-            utils.select_range(self.calib, n1, n2)
+            cell.select_range(self.calib, n1, n2)
             self.color.apply()
 
         return _step
@@ -207,7 +210,7 @@ class DenseSpiral(_1DBase, _PatternBase):
         n1, n2 = self.nodes[self.i], self.nodes[self.i + 1]
 
         def _step() -> None:
-            utils.select_range(self.calib, n1, n2)
+            cell.select_range(self.calib, n1, n2)
             self.color.apply()
 
         return _step
@@ -231,16 +234,20 @@ class PaletteTest1(_2DBase, _PatternBase):
         i, j = self.i, self.j
 
         def _step() -> None:
-            utils.select_range(
+            cell.select_range(
                 calib,
-                (chr(ord("A") + i), 4 * j + 4),
-                (chr(ord("A") + i), 4 * j + 4 + 1),
+                # (chr(ord("A") + i), 4 * j + 4),
+                # (chr(ord("A") + i), 4 * j + 4 + 1),
+                cell.ij2str((i, 4 * j + 3)),
+                cell.ij2str((i, 4 * j + 4)),
             )
             colors.StandardColor(calib, i, j).apply()
-            utils.select_range(
+            cell.select_range(
                 calib,
-                (chr(ord("A") + i), 4 * j + 4 + 2),
-                (chr(ord("A") + i), 4 * j + 4 + 3),
+                # (chr(ord("A") + i), 4 * j + 4 + 2),
+                # (chr(ord("A") + i), 4 * j + 4 + 3),
+                cell.ij2str((i, 4 * j + 5)),
+                cell.ij2str((i, 4 * j + 6)),
             )
             colors.ArbitraryColor(
                 calib,
@@ -354,10 +361,12 @@ class Palette2(_1DBase, _PatternBase):
             )
 
             def _step() -> None:
-                utils.select_range(
+                cell.select_range(
                     self.calib,
-                    (chr(ord("A") + i1), j1 + 1),
-                    (chr(ord("A") + i2), j2 + 1),
+                    # (chr(ord("A") + i1), j1 + 1),
+                    # (chr(ord("A") + i2), j2 + 1),
+                    cell.ij2str((i1, j1)),
+                    cell.ij2str((i2, j2)),
                 )
                 colors.ArbitraryColor(self.calib, *rgb, coerce=True).apply()
 
@@ -371,10 +380,12 @@ class Palette2(_1DBase, _PatternBase):
             )
 
             def _step() -> None:
-                utils.select_range(
+                cell.select_range(
                     self.calib,
-                    (chr(ord("A") + i1), j1 + 1),
-                    (chr(ord("A") + i2), j2 + 1),
+                    # (chr(ord("A") + i1), j1 + 1),
+                    # (chr(ord("A") + i2), j2 + 1),
+                    cell.ij2str((i1, j1)),
+                    cell.ij2str((i2, j2)),
                 )
                 colors.ArbitraryColor(self.calib, *rgb, coerce=True).apply()
 
@@ -394,10 +405,10 @@ class Lights(_1DBase, _PatternBase):
         self.color = color
         self.f: Callable[[CalibrationData, int], None]
         if which == "row":
-            self.f = utils.select_row_index
+            self.f = cell.select_row_index
             N = calib.n_rows
         else:
-            self.f = utils.select_column_index
+            self.f = cell.select_column_index
             N = calib.n_cols
         self._init_1d_base(N)
         self._init_id()
@@ -440,7 +451,12 @@ class RandomCells(_1DBase, _PatternBase):
         i, j = self.coords[self.i]
 
         def _step() -> None:
-            click(*utils.cell_coords(self.calib, (i, j)))
+            click(
+                *cell.cell_coords(
+                    self.calib,
+                    cell.ij2str((i, j)),
+                )
+            )
             self.color.apply()
 
         return _step
@@ -473,7 +489,7 @@ class GaussianCells(_1DBase, _PatternBase):
         super().reset()
 
         def _color(i: int, j: int) -> tuple[int, int, int]:
-            w, q = utils.ij2wq(self.calib, i, j)
+            w, q = cell.ij2wq(self.calib, (i, j))
             r = math.sqrt(w**2 + q**2)
             alpha = min(1, r / self.radius)
             return (
@@ -512,7 +528,12 @@ class GaussianCells(_1DBase, _PatternBase):
         i, j, color_rgb = self.coords[self.i]
 
         def _step() -> None:
-            click(*utils.cell_coords(self.calib, (i, j)))
+            click(
+                *cell.cell_coords(
+                    self.calib,
+                    cell.ij2str((i, j)),
+                )
+            )
             # print(f"Applying color {color_rgb} to cell ({i}, {j})")
             colors.ArbitraryColor(self.calib, *color_rgb).apply()
 
@@ -571,10 +592,12 @@ class Boxes(_1DBase, _PatternBase):
         (i1, j1), (i2, j2) = self.boxes[self.i]
 
         def _step() -> None:
-            utils.select_range(
+            cell.select_range(
                 self.calib,
-                (chr(ord("A") + i1), j1 + 1),
-                (chr(ord("A") + i2), j2 + 1),
+                # (chr(ord("A") + i1), j1 + 1),
+                # (chr(ord("A") + i2), j2 + 1),
+                cell.ij2str((i1, j1)),
+                cell.ij2str((i2, j2)),
             )
             self.color.apply()
 
@@ -670,20 +693,24 @@ class Icicles(_1DBase, _PatternBase):
 
             def _step() -> None:
                 col, row_start, row_end = self.segments[i]
-                utils.select_range(
+                cell.select_range(
                     self.calib,
-                    (chr(ord("A") + col), row_start + 1),
-                    (chr(ord("A") + col), row_end + 1),
+                    # (chr(ord("A") + col), row_start + 1),
+                    # (chr(ord("A") + col), row_end + 1),
+                    cell.ij2str((col, row_start)),
+                    cell.ij2str((col, row_end)),
                 )
                 self.color.apply()
         else:
 
             def _step() -> None:
                 row, col_start, col_end = self.segments[i]
-                utils.select_range(
+                cell.select_range(
                     self.calib,
-                    (chr(ord("A") + col_start), row + 1),
-                    (chr(ord("A") + col_end), row + 1),
+                    # (chr(ord("A") + col_start), row + 1),
+                    # (chr(ord("A") + col_end), row + 1),
+                    cell.ij2str((col_start, row)),
+                    cell.ij2str((col_end, row)),
                 )
                 self.color.apply()
 
@@ -764,14 +791,138 @@ class Snake(_1DBase, _PatternBase):
         (i1, j1), (i2, j2) = self.segments[i]
 
         def _step() -> None:
-            utils.select_range(
+            cell.select_range(
                 self.calib,
-                (chr(ord("A") + i1), j1 + 1),
-                (chr(ord("A") + i2), j2 + 1),
+                # (chr(ord("A") + i1), j1 + 1),
+                # (chr(ord("A") + i2), j2 + 1),
+                cell.ij2str((i1, j1)),
+                cell.ij2str((i2, j2)),
             )
             self.color.apply()
 
         return _step
+
+
+class Image(_1DBase, _PatternBase):
+    """Pattern which draws a downsampled version of the image on the screen."""
+
+    _name_prefix = "image"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        image: Path,
+        *,
+        mode: Literal["resize", "crop"] = "resize",
+    ) -> None:
+        self.calib = calib
+
+        # load image using numpy
+        img1 = PILImage.open(image)
+        img2 = img1.convert("RGB")  # Ensure the image is in RGB format
+
+        if mode == "crop":
+            # crop the image to fit the aspect ratio of the number of cells
+            cell_area_width = calib.cell_width * calib.n_cols
+            cell_area_height = calib.cell_height * calib.n_rows
+            cell_area_aspect_ratio = cell_area_width / cell_area_height
+            img_aspect_ratio = img2.width / img2.height
+            if img_aspect_ratio > cell_area_aspect_ratio:
+                # Image is wider than the cell area, crop width
+                new_width = int(cell_area_height * img_aspect_ratio)
+                img3 = img2.crop(
+                    (
+                        (img2.width - new_width) // 2,
+                        0,
+                        (img2.width + new_width) // 2,
+                        img2.height,
+                    )
+                )
+            else:
+                # Image is taller than the cell area, crop height
+                new_height = int(cell_area_width / img_aspect_ratio)
+                img3 = img2.crop(
+                    (
+                        0,
+                        (img2.height - new_height) // 2,
+                        img2.width,
+                        (img2.height + new_height) // 2,
+                    )
+                )
+        elif mode == "resize":
+            # resize the image to fit the number of cells
+            img3 = img2.resize(
+                (int(calib.n_cols * calib.cell_width), int(calib.n_rows * calib.cell_height)),
+                PILImage.Resampling.LANCZOS,
+            )
+        else:
+            raise ValueError(f"Unknown mode: {mode}. Use 'resize' or 'crop'.")
+
+        # downsample the image to fit the number of cells
+        img4 = img3.resize(
+            (calib.n_cols, calib.n_rows),
+            PILImage.Resampling.LANCZOS,
+        )
+
+        # convert the image to a list of RGB tuples
+        self.image_data: list[tuple[int, int, int]] = list(img4.getdata())
+
+        self._init_id()
+        self._init_1d_base(calib.n_cols * calib.n_rows)
+        self.reset()
+
+    def reset(self) -> None:
+        super().reset()
+        coords_and_colors = [
+            (
+                (i, j),
+                self.image_data[i + j * self.calib.n_cols],
+            )
+            for i in range(self.calib.n_cols)
+            for j in range(self.calib.n_rows)
+        ]
+
+        # group by color
+        grouped_coords = colors.group_by_color(
+            coords_and_colors,
+            color_accessor=lambda x: x[1],
+            distance_tol=5,
+            # shuffle=True,
+        )
+
+        # grouped_patches: list[colors.ColorPatch] = []
+        # for color_rgb, coords in grouped_coords.items():
+        #     grouped_coords[color_rgb] = [
+        #         colors.ColorPatch.from_one_coord(self.calib, (i, j), color_rgb) for (i, j) in coords
+        #     ]
+        # _grouped_patches: list[colors.Sta] = [
+        #     colors.ColorPatch.from_one_coord(self.calib, coords[0], color_rgb)
+        #     for color_rgb, coords in grouped_coords.items()
+        # ]
+
+        # flatten the grouped coordinates
+        self.coords: list[tuple[int, int, tuple[int, int, int]]] = []
+        for color_rgb, coords in grouped_coords.items():
+            for (i, j), _ in coords:
+                self.coords.append((i, j, color_rgb))
+
+    def step(self) -> PatternStep:
+        i, j, color_rgb = self.coords[self.i]
+
+        def _step() -> None:
+            click(
+                *cell.cell_coords(
+                    self.calib,
+                    cell.ij2str((i, j)),
+                )
+            )
+            colors.ArbitraryColor(self.calib, *color_rgb).apply()
+
+        return _step
+
+
+if TYPE_CHECKING:
+    _image: Pattern = Image.__new__(Image)
 
 
 ################################################################################

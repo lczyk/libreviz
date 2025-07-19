@@ -145,6 +145,16 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
+    patterns.PaletteTest1(calib).step_all()
+
+    # patterns.Image(
+    #     calib,
+    #     image=__project_root__ / "img" / "logo.png",
+    #     mode="crop",
+    # ).step_all()
+
+    exit()
+
     while True:
         fires_up_night_down(calib)
 

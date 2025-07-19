@@ -1,11 +1,11 @@
 import random
 import time
 from collections import deque
-from typing import TYPE_CHECKING, Callable, Protocol
+from typing import TYPE_CHECKING, Callable, Protocol, TypeVar
 
 import pyautogui
 
-from . import utils
+from . import cell
 from .calibrate import CalibrationData
 from .patched_click import click
 
@@ -649,7 +649,7 @@ class ArbitraryColor(Color):
             # time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
             pyautogui.typewrite(f"{self.b}")
             pyautogui.press("enter")
-            time.sleep(pyautogui.DARWIN_CATCH_UP_TIME * 2)
+            time.sleep(pyautogui.DARWIN_CATCH_UP_TIME * 3)
 
     def apply(self) -> None:
         apply_or_recent(self.calib, self.rgb(), self._apply, cache=self.cache)
@@ -707,7 +707,11 @@ if TYPE_CHECKING:
 
 def reset_all_colors(calib: CalibrationData) -> None:
     """Reset all colors in the grid to 'No Fill'."""
-    utils.select_range(calib, ("A", 1), ("S", 52))
+    cell.select_range(
+        calib,
+        cell.ij2str((0, 0)),
+        cell.ij2str((calib.n_cols - 1, calib.n_rows - 1)),
+    )
     NoFillColor(calib).apply()
 
 
@@ -717,3 +721,84 @@ def blend_rgb(c1: ColorRGB, c2: ColorRGB, ratio: float) -> ColorRGB:
     g = int(c1[1] * (1 - ratio) + c2[1] * ratio)
     b = int(c1[2] * (1 - ratio) + c2[2] * ratio)
     return (r, g, b)
+
+
+_T = TypeVar("_T")
+
+
+def group_by_color(
+    objects: list[_T],
+    color_accessor: Callable[[_T], tuple[int, int, int]],
+    distance_tol: int = 10,
+    shuffle: bool = False,
+) -> dict[tuple[int, int, int], list[_T]]:
+    """Group objects by color, using the provided color accessor function."""
+    grouped: dict[tuple[int, int, int], list[_T]] = {}
+    for obj in objects:
+        color_rgb = color_accessor(obj)
+        found = False
+        for existing_color in grouped:
+            if color_distance(existing_color, color_rgb) < distance_tol:
+                grouped[existing_color].append(obj)
+                found = True
+                break
+        if not found:
+            grouped[color_rgb] = [obj]
+
+    if shuffle:
+        for color in grouped:
+            random.shuffle(grouped[color])
+    return grouped
+
+
+class ColorRectangle:
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: Color,
+        top_left: cell.CellIJ,
+        bottom_right: cell.CellIJ,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+
+        # rearrange the coordinates to ensure top_left is always the top-left corner
+        if top_left[0] > bottom_right[0]:
+            top_left, bottom_right = bottom_right, top_left
+        if top_left[1] > bottom_right[1]:
+            top_left, bottom_right = (top_left[0], bottom_right[1]), (bottom_right[0], top_left[1])
+
+        self.top_left = top_left
+        self.bottom_right = bottom_right
+
+    def apply(self) -> None:
+        """Apply the color to the rectangle area defined by top_left and bottom_right."""
+        cell.select_range(
+            self.calib,
+            cell.ij2str(self.top_left),
+            cell.ij2str(self.bottom_right),
+        )
+        self.color.apply()
+
+
+if TYPE_CHECKING:
+    _color_rectangle: ColorRectangle = ColorRectangle.__new__(ColorRectangle)
+
+# class ColorPatch:
+#     calib: CalibrationData
+
+#     def __init__(self, calib: CalibrationData) -> None:
+#         # unclear what's the internal implementation of this class
+#         raise NotImplementedError("dont use __init__ directly")
+
+#     @classmethod
+#     def from_one_coord(
+#         cls,
+#         calib: CalibrationData,
+#         color: Color,
+#     ) -> "ColorPatch":
+#         """Create a ColorPatch from a single color."""
+#         self = cls.__new__(cls)
+#         self.calib = calib
+
+#         return self
