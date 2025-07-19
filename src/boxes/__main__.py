@@ -8,7 +8,7 @@ from typing import Literal
 
 import pyautogui
 
-from . import colors, eject_button, patterns, text
+from . import colors, eject_button, patterns, text, utils
 from .calibrate import CalibrationData, calibrate
 
 eject_button.arm()
@@ -42,6 +42,7 @@ def main() -> None:
 
     elif sys.argv[1] == "calibrate":
         calibration_data = calibrate(
+            targets_dir=__project_root__ / "targets",
             # 1 on most monitors, 2 on high DPI monitors
             pixel_ratio=2,
             sleep_time=0.0,
@@ -72,19 +73,88 @@ def main() -> None:
         raise ValueError(f"Unknown argument: {sys.argv[1]}. Expected 'calibrate' or 'run'.")
 
 
+def fires_up_night_down(calib: CalibrationData) -> None:
+    p: list[patterns.Pattern]
+
+    # FIRES UP
+    golds: tuple[colors.ColorName, ...] = (
+        "dark_gold_1",
+        "dark_gold_1",
+        "gold",
+        "gold",
+        "light_gold_1",
+        "light_gold_2",
+    )
+
+    oranges: tuple[colors.ColorName, ...] = (
+        "dark_orange_1",
+        "dark_orange_1",
+        "orange",
+        "orange",
+        "orange",
+        "light_orange_1",
+    )
+
+    bricks: tuple[colors.ColorName, ...] = (
+        "dark_brick_1",
+        "dark_brick_1",
+        "brick",
+        "brick",
+        "brick",
+        "light_brick_1",
+        "light_brick_1",
+    )
+
+    p = [
+        patterns.Icicles(calib, "up", colors.StandardCyclerColor(calib, golds), segment_size=8),
+        patterns.Icicles(calib, "up", colors.StandardCyclerColor(calib, oranges), segment_size=8),
+        patterns.Icicles(calib, "up", colors.StandardCyclerColor(calib, bricks), segment_size=8),
+    ]
+
+    patterns.interweave_patterns(p)
+
+    # NIGHT DOWN
+
+    _sky: list[colors.ColorName] = [
+        "blue",
+        "dark_blue_1",
+        "dark_blue_2",
+        "dark_blue_3",
+        "dark_indigo_3",
+    ]
+
+    sky = tuple(_sky)
+
+    patterns.Snake(
+        calib,
+        colors.StandardCyclerColor(
+            calib,
+            utils.bounce(sky),
+            offset=random.randint(0, len(sky) - 1),
+        ),
+    ).step_all()
+
+
 def run(calib: CalibrationData) -> None:
     colors.reset_all_colors(calib)
     text.reset_all_cell_contents(calib)
     time.sleep(0.1)
 
+    p: list[patterns.Pattern]
+
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
+
+    while True:
+        fires_up_night_down(calib)
+
+    sys.exit()
 
     c = list(colors.TEALS) + list(colors.LIMES)
     random.shuffle(c)
     patterns.DenseSpiral(
         calib,
-        colors.StandardPaletteColor(calib, c),
+        colors.StandardCyclerColor(calib, c),
     ).step_all()
 
     dc: list[tuple[Literal["down", "up", "left", "right"], str]] = [
@@ -93,7 +163,7 @@ def run(calib: CalibrationData) -> None:
         ("left", "light_indigo_1"),
         ("right", "light_gold_1"),
     ]
-    p: list[patterns.Pattern] = [patterns.Icicles(calib, d, colors.StandardColor.from_name(calib, c)) for d, c in dc]
+    p = [patterns.Icicles(calib, d, colors.StandardColor.from_name(calib, c)) for d, c in dc]
 
     patterns.interweave_patterns(p)
 
@@ -108,7 +178,7 @@ def run(calib: CalibrationData) -> None:
         this_c2 = c2.popleft()
         c2.append(this_c2)
 
-        p: list[patterns.Pattern] = [
+        p = [
             # patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "light_red_1")),
             # patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "light_blue_1")),
             patterns.Lights(calib, "column", colors.StandardColor.from_name(calib, this_c2)),
@@ -125,7 +195,7 @@ def run(calib: CalibrationData) -> None:
             color_group_2 = list(color_group)
             color_group_2.extend(reversed(color_group_2[1:-1]))
 
-            palette = colors.StandardPaletteColor(
+            palette = colors.StandardCyclerColor(
                 calib,
                 color_group_2,
                 offset=palette.current_index if palette else 0,
