@@ -15,17 +15,24 @@ class CalibrationData:
     bottom_right: tuple[float, float]  # (x, y) coordinates of
     last_bucket: tuple[float, float]  # (x, y) coordinates of the last bucket icon
     open_bucket: tuple[float, float]  # (x, y) coordinates of the bucket icon
-    cx1: int
-    cy1: int
-    cx2: int
-    cy2: int
-    cx3: int
-    cy3: int
+
+    color_no_fill: tuple[float, float]  # (x, y) coordinates of the no fill button
+    color_top_left: tuple[float, float]  # (x, y) coordinates of the top left color cell
+    color_bottom_right: tuple[float, float]  # (x, y) coordinates of the bottom right color cell
+    # cx1: int
+    # cy1: int
+    # cx2: int
+    # cy2: int
+    # cx3: int
+    # cy3: int
 
     custom_color: tuple[float, float]  # (x, y) coordinates of the custom color button
 
     cell_width: float
     cell_height: float
+
+    color_cell_width: float
+    color_cell_height: float
 
     # (x, y) coordinates of the label cell for the first column and row
     first_row: tuple[float, float]
@@ -191,6 +198,8 @@ def calibrate(
 
     pyautogui.moveTo(*custom_color)
 
+    color_cell_width = (bottom_right_color[0] - top_left_color[0]) / (n_color_cols - 1)
+    color_cell_height = (bottom_right_color[1] - top_left_color[1]) / (n_color_rows - 1)
     # _click(*top_left_cell)
 
     # display a message box to check whether we want to proceed
@@ -212,12 +221,11 @@ def calibrate(
             bucket_location_2[1],
         ),
         open_bucket=bucket_location_2,
-        cx1=int(no_fill_location[0]),
-        cy1=int(no_fill_location[1]),
-        cx2=int(top_left_color[0]),
-        cy2=int(top_left_color[1]),
-        cx3=int(bottom_right_color[0]),
-        cy3=int(bottom_right_color[1]),
+        color_no_fill=no_fill_location,
+        color_top_left=top_left_color,
+        color_bottom_right=bottom_right_color,
+        color_cell_width=color_cell_width,
+        color_cell_height=color_cell_height,
         custom_color=custom_color,
         first_row=first_row,
         first_col=first_col,

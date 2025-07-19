@@ -22,13 +22,10 @@ def open_bucket(calib: CalibrationData) -> None:
 
 def standard_color_coords(calib: CalibrationData, c: ColorIJ) -> ColorXY:
     """Move to the specified color cell in the color palette."""
-    width = calib.cx3 - calib.cx2
-    height = calib.cy3 - calib.cy2
-    color_cell_width = width / (calib.n_color_cols - 1)
-    color_cell_height = height / (calib.n_color_rows - 1)
-    x = calib.cx2 + color_cell_width * c[0]
-    y = calib.cy2 + color_cell_height * c[1]
-    return (x, y)
+    return (
+        calib.color_top_left[0] + calib.color_cell_width * c[0],
+        calib.color_top_left[1] + calib.color_cell_height * c[1],
+    )
 
 
 class Color(Protocol):
@@ -488,8 +485,7 @@ class NoFillColor(Color):
 
     def apply(self) -> None:
         open_bucket(self.calib)
-        position = (self.calib.cx1, self.calib.cy1)
-        click(*position)
+        click(*self.calib.color_no_fill)
 
 
 if TYPE_CHECKING:
