@@ -113,3 +113,66 @@ def ij2wq(calib: CalibrationData, ij: CellIJ) -> CellWQ:
         w = ij[0] / (calib.n_cols - 1) * 2 - 1
         q = (ij[1] / (calib.n_rows - 1) * 2 - 1) / aspect_ratio
     return (w, q)
+
+
+DEFAULT_CELL_WIDTH = 2.26  # cm
+DEFAULT_CELL_HEIGHT = 0.45  # cm
+
+
+def change_cell_dimensions(
+    calib: CalibrationData,
+    cell_width: float = DEFAULT_CELL_WIDTH,
+    cell_height: float = DEFAULT_CELL_HEIGHT,
+) -> None:
+    """Change the cell dimensions in the calibration data."""
+    pyautogui.keyDown("command")
+    pyautogui.press("a")
+    pyautogui.keyUp("command")
+    click(*calib.row_settings_location)
+    click(*calib.row_height_location)
+    for _ in range(10):
+        pyautogui.press("delete")
+    pyautogui.write(str(cell_height))
+    pyautogui.press("enter")
+
+    click(*calib.column_settings_location)
+    click(*calib.column_width_location)
+    for _ in range(10):
+        pyautogui.press("delete")
+    pyautogui.write(str(cell_width))
+    pyautogui.press("enter")
+
+    # row_settings_location = (
+    #     row_column_location.left / pixel_ratio + 0.25 * row_column_location.width / pixel_ratio,
+    #     row_column_location.top / pixel_ratio + 0.5 * row_column_location.height / pixel_ratio,
+    # )
+    # row_height_location = (
+    #     row_settings_location[0],
+    #     row_settings_location[1] + 120 / pixel_ratio,
+    # )
+
+    # pyautogui.keyDown("command")
+    # pyautogui.press("a")
+    # pyautogui.keyUp("command")
+    # click(*row_settings_location)
+    # click(*row_height_location)
+    # for _ in range(10):
+    #     pyautogui.press("delete")
+    # pyautogui.write(str(cell_height))
+    # pyautogui.press("enter")
+
+    # column_settings_location = (
+    #     row_column_location.left / pixel_ratio + 0.75 * row_column_location.width / pixel_ratio,
+    #     row_column_location.top / pixel_ratio + 0.5 * row_column_location.height / pixel_ratio,
+    # )
+    # column_width_location = (
+    #     column_settings_location[0],
+    #     column_settings_location[1] + 120 / pixel_ratio,
+    # )
+
+    # click(*column_settings_location)
+    # click(*column_width_location)
+    # for _ in range(10):
+    #     pyautogui.press("delete")
+    # pyautogui.write(str(cell_width))
+    # pyautogui.press("enter")

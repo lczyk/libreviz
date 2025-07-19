@@ -3,9 +3,12 @@ import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 import pyautogui
+from pyscreeze import Box
 
+from . import cell
 from .patched_click import click
 
 
@@ -19,12 +22,6 @@ class CalibrationData:
     color_no_fill: tuple[float, float]  # (x, y) coordinates of the no fill button
     color_top_left: tuple[float, float]  # (x, y) coordinates of the top left color cell
     color_bottom_right: tuple[float, float]  # (x, y) coordinates of the bottom right color cell
-    # cx1: int
-    # cy1: int
-    # cx2: int
-    # cy2: int
-    # cx3: int
-    # cy3: int
 
     custom_color: tuple[float, float]  # (x, y) coordinates of the custom color button
 
@@ -43,6 +40,11 @@ class CalibrationData:
     n_color_cols: int
     n_color_rows: int
 
+    row_settings_location: tuple[float, float]  # (x, y) coordinates of the row settings button
+    row_height_location: tuple[float, float]  # (x, y) coordinates of the row height input field
+    column_settings_location: tuple[float, float]  # (x, y) coordinates of the column settings button
+    column_width_location: tuple[float, float]  # (x, y) coordinates of the column width input field
+
     @classmethod
     def from_b64(cls, b64_data: str) -> "CalibrationData":
         """Create an instance from base64 encoded JSON string."""
@@ -58,6 +60,47 @@ class CalibrationData:
         return base64.b64encode(json.dumps(self.__dict__).encode()).decode()
 
 
+def locate(
+    target: str,
+    confidence: float = 0.8,
+) -> Box | None:
+    box = None
+    try:  # noqa: SIM105
+        box = pyautogui.locateOnScreen(target, confidence=confidence)
+    except pyautogui.ImageNotFoundException:
+        pass
+
+    return box
+
+
+def _row_column_to_locations(
+    box: Box,
+    pixel_ratio: int = 1,
+) -> tuple[tuple[float, float], ...]:
+    row_settings_location = (
+        box.left / pixel_ratio + 0.25 * box.width / pixel_ratio,
+        box.top / pixel_ratio + 0.5 * box.height / pixel_ratio,
+    )
+    row_height_location = (
+        row_settings_location[0],
+        row_settings_location[1] + 120 / pixel_ratio,
+    )
+    column_settings_location = (
+        box.left / pixel_ratio + 0.75 * box.width / pixel_ratio,
+        box.top / pixel_ratio + 0.5 * box.height / pixel_ratio,
+    )
+    column_width_location = (
+        column_settings_location[0],
+        column_settings_location[1] + 120 / pixel_ratio,
+    )
+    return (
+        row_settings_location,
+        row_height_location,
+        column_settings_location,
+        column_width_location,
+    )
+
+
 def calibrate(
     targets_dir: Path,
     pixel_ratio: int = 1,
@@ -68,6 +111,7 @@ def calibrate(
     _targets = {
         "top_left": targets_dir / "top_left.png",
         "bucket": targets_dir / "bucket.png",
+        "row_column": targets_dir / "row_column.png",
     }
     for name, path in _targets.items():
         if not path.exists():
@@ -76,42 +120,52 @@ def calibrate(
 
     targets = {k: str(v) for k, v in _targets.items()}
 
+    # def _reset_height_width() -> None:
+    #     pyautogui.keyDown("command")
+    #     pyautogui.press("a")
+    #     pyautogui.keyUp("command")
+    #     click(*row_settings_location)
+    #     click(*row_height_location)
+    #     for _ in range(10):
+    #         pyautogui.press("delete")
+    #     pyautogui.write(str(cell.DEFAULT_CELL_HEIGHT))
+    #     pyautogui.press("enter")
+
+    #     click(*column_settings_location)
+    #     click(*column_width_location)
+    #     for _ in range(10):
+    #         pyautogui.press("delete")
+    #     pyautogui.write(str(cell.DEFAULT_CELL_WIDTH))
+    #     pyautogui.press("enter")
+
     # locate the image on the screen
+    _locations = {
+        "top_left": locate(targets["top_left"], confidence=0.8),
+        "bucket": locate(targets["bucket"], confidence=0.8),
+        "row_column": locate(targets["row_column"], confidence=0.8),
+    }
 
-    try:
-        location_A1 = pyautogui.locateOnScreen(
-            targets["top_left"],
-            confidence=0.8,
-        )
-    except pyautogui.ImageNotFoundException:
-        location_A1 = None
+    for name, location in _locations.items():
+        if location is None:
+            print(f"Error: {name}.png not found on screen.")
+            sys.exit()
 
-    if location_A1 is None:
-        print("Error: top_left.png not found on screen.")
-        sys.exit()
+    locations = cast(dict[str, Box], _locations)
 
-    try:
-        location_bucket = pyautogui.locateOnScreen(
-            targets["bucket"],
-            confidence=0.8,
-        )
-    except pyautogui.ImageNotFoundException:
-        location_bucket = None
-
-    if location_bucket is None:
-        print("Error: bucket.png not found on screen.")
-        sys.exit()
-
-    # print("top_left.png location:", location_A1)
-    # print("bucket.png location:", location_bucket)
+    (
+        row_settings_location,
+        row_height_location,
+        column_settings_location,
+        column_width_location,
+    ) = _row_column_to_locations(locations["row_column"])
 
     screen_size = pyautogui.size()
     # print(f"Screen size: {screen_size}")
 
     # top left cell
     top_left_cell = (
-        location_A1.left / pixel_ratio + 73,
-        location_A1.top / pixel_ratio + location_A1.height / pixel_ratio - 30,
+        locations["top_left"].left / pixel_ratio + 73,
+        locations["top_left"].top / pixel_ratio + locations["top_left"].height / pixel_ratio - 30,
     )
     pyautogui.moveTo(*top_left_cell)
     pyautogui.sleep(sleep_time)
@@ -162,8 +216,8 @@ def calibrate(
 
     # move to the bucket icon
     bucket_location_2 = (
-        location_bucket.left / pixel_ratio + 0.85 * location_bucket.width / pixel_ratio,
-        location_bucket.top / pixel_ratio + 0.5 * location_bucket.height / pixel_ratio,
+        locations["bucket"].left / pixel_ratio + 0.85 * locations["bucket"].width / pixel_ratio,
+        locations["bucket"].top / pixel_ratio + 0.5 * locations["bucket"].height / pixel_ratio,
     )
     click(*bucket_location_2)
 
@@ -203,7 +257,7 @@ def calibrate(
     # _click(*top_left_cell)
 
     # display a message box to check whether we want to proceed
-    response = pyautogui.confirm(  # type: ignore[attr-defined]
+    response = pyautogui.confirm(  # type: ignore[attr-defined, unused-ignore]
         text="Was that correct?",
         title="Boxes",
         buttons=["Yes", "No"],
@@ -235,4 +289,45 @@ def calibrate(
         n_rows=n_rows,
         n_color_cols=n_color_cols,
         n_color_rows=n_color_rows,
+        row_settings_location=row_settings_location,
+        row_height_location=row_height_location,
+        column_settings_location=column_settings_location,
+        column_width_location=column_width_location,
     )
+
+
+def reset(
+    targets_dir: Path,
+    pixel_ratio: int = 1,
+) -> None:
+    """Reset the cell dimensions to the default values."""
+
+    print("Resetting cell dimensions to default values...")
+    row_column_location = locate(str(targets_dir / "row_column.png"), confidence=0.8)
+    if row_column_location is None:
+        print("Error: row_column.png not found on screen.")
+        sys.exit()
+
+    (
+        row_settings_location,
+        row_height_location,
+        column_settings_location,
+        column_width_location,
+    ) = _row_column_to_locations(row_column_location, pixel_ratio=pixel_ratio)
+
+    pyautogui.keyDown("command")
+    pyautogui.press("a")
+    pyautogui.keyUp("command")
+    click(*row_settings_location)
+    click(*row_height_location)
+    for _ in range(10):
+        pyautogui.press("delete")
+    pyautogui.write(str(cell.DEFAULT_CELL_HEIGHT))
+    pyautogui.press("enter")
+
+    click(*column_settings_location)
+    click(*column_width_location)
+    for _ in range(10):
+        pyautogui.press("delete")
+    pyautogui.write(str(cell.DEFAULT_CELL_WIDTH))
+    pyautogui.press("enter")

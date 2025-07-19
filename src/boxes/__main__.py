@@ -8,8 +8,8 @@ from typing import Literal
 
 import pyautogui
 
-from . import colors, eject_button, patterns, text, utils
-from .calibrate import CalibrationData, calibrate
+from . import cell, colors, eject_button, patterns, text, utils
+from .calibrate import CalibrationData, calibrate, reset
 
 eject_button.arm()
 
@@ -30,15 +30,27 @@ def main() -> None:
                 "confirmation box."
             ),
             title="Boxes",
-            buttons=["Yes", "No"],
+            buttons=["Yes", "No", "Reset (!)"],
         )
 
         if response == "No":
             print("Exiting script.")
             sys.exit()
+        elif response == "Reset (!)":
+            os.execv(sys.executable, [sys.executable, "-m", "src.boxes", "reset"])
 
-        # call self with 'run' argument and replace the current process
-        os.execv(sys.executable, [sys.executable, "-m", "src.boxes", "calibrate"])
+        elif response == "Yes":
+            # call self with 'run' argument and replace the current process
+            os.execv(sys.executable, [sys.executable, "-m", "src.boxes", "calibrate"])
+        else:
+            print(f"Unknown response: {response}. Expected 'Yes', 'No', or 'Reset'.")
+            sys.exit()
+
+    elif sys.argv[1] == "reset":
+        reset(
+            targets_dir=__project_root__ / "targets",
+            pixel_ratio=2,  # 1 on most monitors, 2 on high DPI monitors
+        )
 
     elif sys.argv[1] == "calibrate":
         calibration_data = calibrate(
@@ -145,7 +157,11 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
-    patterns.PaletteTest1(calib).step_all()
+    time.sleep(1.0)
+
+    cell.change_cell_dimensions(calib, cell_width=0.5, cell_height=0.5)
+
+    # patterns.PaletteTest1(calib).step_all()
 
     # patterns.Image(
     #     calib,
