@@ -11,12 +11,10 @@ from .patched_click import click
 
 @dataclass(frozen=True)
 class CalibrationData:
-    x1: int
-    y1: int
-    x2: int
-    y2: int
-    bx: int
-    by: int
+    top_left: tuple[float, float]  # (x, y) coordinates of the top left cell
+    bottom_right: tuple[float, float]  # (x, y) coordinates of
+    last_bucket: tuple[float, float]  # (x, y) coordinates of the last bucket icon
+    open_bucket: tuple[float, float]  # (x, y) coordinates of the bucket icon
     cx1: int
     cy1: int
     cx2: int
@@ -207,12 +205,13 @@ def calibrate(
         sys.exit()
 
     return CalibrationData(
-        x1=int(top_left_cell[0]),
-        y1=int(top_left_cell[1]),
-        x2=int(bottom_right_cell[0]),
-        y2=int(bottom_right_cell[1]),
-        bx=int(bucket_location_2[0]),
-        by=int(bucket_location_2[1]),
+        top_left=top_left_cell,
+        bottom_right=bottom_right_cell,
+        last_bucket=(
+            bucket_location_2[0] - 20,
+            bucket_location_2[1],
+        ),
+        open_bucket=bucket_location_2,
         cx1=int(no_fill_location[0]),
         cy1=int(no_fill_location[1]),
         cx2=int(top_left_color[0]),

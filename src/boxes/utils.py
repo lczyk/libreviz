@@ -16,9 +16,10 @@ Coord: TypeAlias = "tuple[int, int] | tuple[str, str | int] | str"
 
 def _cell_coords_i(calib: CalibrationData, c: tuple[int, int]) -> tuple[float, float]:
     """Move to the specified cell in the grid by index."""
-    x = calib.x1 + calib.cell_width * c[0]
-    y = calib.y1 + calib.cell_height * c[1]
-    return (x, y)
+    return (
+        calib.top_left[0] + calib.cell_width * c[0],
+        calib.top_left[1] + calib.cell_height * c[1],
+    )
 
 
 def _cell_coords_x(calib: CalibrationData, c: "tuple[str, str | int]") -> tuple[float, float]:

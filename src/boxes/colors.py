@@ -17,7 +17,7 @@ ColorXY = tuple[float, float]  # Coordinates in the color palette as (x, y)
 
 def open_bucket(calib: CalibrationData) -> None:
     """Open the bucket tool in LibreOffice."""
-    click(calib.bx, calib.by)
+    click(*calib.open_bucket)
 
 
 def standard_color_coords(calib: CalibrationData, c: ColorIJ) -> ColorXY:
@@ -66,8 +66,7 @@ def apply_or_recent(
         if len(RECENT_COLORS) > 0 and color_distance(RECENT_COLORS[0], color_rbg) <= tolerance:
             # we're matching the most recent color
             # apply the same color again
-            position = (calib.bx - 20, calib.by)
-            click(*position)
+            click(*calib.last_bucket)
 
         else:
             # TODO: check colors other than the most recent one
