@@ -135,3 +135,10 @@ def ij2wq(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
         w = i / (calib.n_cols - 1) * 2 - 1
         q = (j / (calib.n_rows - 1) * 2 - 1) / aspect_ratio
     return (w, q)
+
+
+_T = TypeVar("_T")
+
+
+def bounce(p: tuple[_T, ...]) -> tuple[_T, ...]:
+    return tuple(list(p) + list(reversed(p[1:-1])))
