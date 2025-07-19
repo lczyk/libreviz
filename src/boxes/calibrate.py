@@ -1,9 +1,8 @@
 import base64
-import contextlib
 import json
-import os
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import pyautogui
 
@@ -55,26 +54,42 @@ class CalibrationData:
 
 
 def calibrate(
+    targets_dir: Path,
     pixel_ratio: int = 1,
     sleep_time: float = 0.1,
 ) -> CalibrationData:
     # check that 'top_left.png' exists
-    if not os.path.exists("./top_left.png"):
-        print("Error: top_left.png not found.")
-        sys.exit()
+
+    _targets = {
+        "top_left": targets_dir / "top_left.png",
+        "bucket": targets_dir / "bucket.png",
+    }
+    for name, path in _targets.items():
+        if not path.exists():
+            print(f"Error: {name}.png not found in {targets_dir}.")
+            sys.exit()
+
+    targets = {k: str(v) for k, v in _targets.items()}
 
     # locate the image on the screen
-    location_A1 = None
 
-    with contextlib.suppress(pyautogui.ImageNotFoundException):
-        location_A1 = pyautogui.locateOnScreen("top_left.png", confidence=0.8)
+    try:
+        location_A1 = pyautogui.locateOnScreen(
+            targets["top_left"],
+            confidence=0.8,
+        )
+    except pyautogui.ImageNotFoundException:
+        location_A1 = None
 
     if location_A1 is None:
         print("Error: top_left.png not found on screen.")
         sys.exit()
 
     try:
-        location_bucket = pyautogui.locateOnScreen("bucket.png", confidence=0.8)
+        location_bucket = pyautogui.locateOnScreen(
+            targets["bucket"],
+            confidence=0.8,
+        )
     except pyautogui.ImageNotFoundException:
         location_bucket = None
 

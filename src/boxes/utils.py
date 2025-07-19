@@ -1,5 +1,5 @@
 import time
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, TypeVar, overload
 
 import pyautogui
 
@@ -16,12 +16,8 @@ Coord: TypeAlias = "tuple[int, int] | tuple[str, str | int] | str"
 
 def _cell_coords_i(calib: CalibrationData, c: tuple[int, int]) -> tuple[float, float]:
     """Move to the specified cell in the grid by index."""
-    width = calib.x2 - calib.x1
-    height = calib.y2 - calib.y1
-    cell_width = width / (calib.n_cols - 1)
-    cell_height = height / (calib.n_rows - 1)
-    x = calib.x1 + cell_width * c[0]
-    y = calib.y1 + cell_height * c[1]
+    x = calib.x1 + calib.cell_width * c[0]
+    y = calib.y1 + calib.cell_height * c[1]
     return (x, y)
 
 
@@ -121,10 +117,8 @@ def ij2uv(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
 def ij2wq(calib: CalibrationData, i: int, j: int) -> tuple[float, float]:
     # w/q coordinates are just like u/v, but the color is in screen coordinates,
     # not image coordinates. This means that the circles are drawn correctly
-    cell_width = (calib.x2 - calib.x1) / (calib.n_cols - 1)
-    cell_height = (calib.y2 - calib.y1) / (calib.n_rows - 1)
-    cell_area_width = calib.n_cols * cell_width
-    cell_area_height = calib.n_rows * cell_height
+    cell_area_width = calib.n_cols * calib.cell_width
+    cell_area_height = calib.n_rows * calib.cell_height
     aspect_ratio = cell_area_width / cell_area_height
     if aspect_ratio > 1:
         # Wider than tall
