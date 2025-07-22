@@ -185,7 +185,7 @@ def run(calib: CalibrationData) -> None:
     pyautogui.PAUSE = 0.03
     # pyautogui.PAUSE = 0.2
 
-    # calib = change_to_square_grid(calib)
+    calib = change_to_square_grid(calib)
 
     patterns.OneColorTest(
         calib,

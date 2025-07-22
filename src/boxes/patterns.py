@@ -886,37 +886,36 @@ class Image(_1DBase, _PatternBase):
         grouped_coords = colors.group_by_color(
             coords_and_colors,
             color_accessor=lambda x: x[1],
-            distance_tol=5,
+            distance_tol=10,
             # shuffle=True,
         )
 
-        # grouped_patches: list[colors.ColorPatch] = []
-        # for color_rgb, coords in grouped_coords.items():
-        #     grouped_coords[color_rgb] = [
-        #         colors.ColorPatch.from_one_coord(self.calib, (i, j), color_rgb) for (i, j) in coords
-        #     ]
-        # _grouped_patches: list[colors.Sta] = [
-        #     colors.ColorPatch.from_one_coord(self.calib, coords[0], color_rgb)
-        #     for color_rgb, coords in grouped_coords.items()
-        # ]
-
-        # flatten the grouped coordinates
-        self.coords: list[tuple[int, int, tuple[int, int, int]]] = []
+        grouped_rich_colors: dict[tuple[int, int, int], list[colors.RichColor]] = {}
         for color_rgb, coords in grouped_coords.items():
+            color_cells: list[colors.ColoredCell] = []
             for (i, j), _ in coords:
-                self.coords.append((i, j, color_rgb))
+                color_cells.append(
+                    colors.ColoredCell(
+                        self.calib,
+                        colors.ArbitraryColor(self.calib, *color_rgb),
+                        cell.ij2str((i, j)),
+                    )
+                )
+            grouped_rich_colors[color_rgb] = colors.simplify_monochrome_colors(color_cells)
+
+        # flatten
+        rich_colors: list[colors.RichColor] = []
+        for rich_colors_group in grouped_rich_colors.values():
+            rich_colors.extend(rich_colors_group)
+
+        self.rich_colors = rich_colors
+        self._init_1d_base(len(self.rich_colors))
 
     def step(self) -> PatternStep:
-        i, j, color_rgb = self.coords[self.i]
+        rich_color = self.rich_colors[self.i]
 
         def _step() -> None:
-            click(
-                *cell.cell_coords(
-                    self.calib,
-                    cell.ij2str((i, j)),
-                )
-            )
-            colors.ArbitraryColor(self.calib, *color_rgb).apply()
+            rich_color.apply()
 
         return _step
 
