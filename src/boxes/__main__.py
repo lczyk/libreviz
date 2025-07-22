@@ -187,9 +187,9 @@ def run(calib: CalibrationData) -> None:
 
     calib = change_to_square_grid(calib)
 
-    patterns.OneColorTest(
+    patterns.BoxFill(
         calib,
-        colors.StandardColor.from_name(calib, "light_yellow_4"),
+        colors.StandardColor.from_name(calib, "light_lime_3"),
     ).step_all()
 
     # patterns.PaletteTest1(calib).step_all()

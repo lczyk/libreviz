@@ -100,10 +100,15 @@ class CalibrationData:
 def locate(
     target: str,
     confidence: float = 0.8,
+    grayscale: bool = False,
 ) -> Box | None:
     box = None
     try:  # noqa: SIM105
-        box = pyautogui.locateOnScreen(target, confidence=confidence)
+        box = pyautogui.locateOnScreen(
+            target,
+            confidence=confidence,
+            grayscale=grayscale,
+        )
     except pyautogui.ImageNotFoundException:
         pass
 
@@ -368,7 +373,7 @@ def reset(
     pyautogui.press("enter")
 
     # find the top left cell
-    top_left_cell_location = locate(str(targets_dir / "top_left_2.png"), confidence=0.8)
+    top_left_cell_location = locate(str(targets_dir / "top_left_2.png"), confidence=0.8, grayscale=True)
     if top_left_cell_location is None:
         print("Error: top_left.png not found on screen.")
         sys.exit()
