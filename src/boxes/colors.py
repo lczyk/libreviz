@@ -29,8 +29,17 @@ def standard_color_coords(calib: CalibrationData, c: ColorIJ) -> ColorXY:
 
 
 class Color(Protocol):
+    # Colors know how to apply themselves
     def rgb(self) -> ColorRGB: ...
     def apply(self) -> None: ...
+    def _color(self) -> None: ...  # marker method
+
+
+class RichColor(Protocol):
+    # Rich colors are colors which know *where* to apply themselves
+    def base(self) -> Color: ...
+    def apply(self) -> None: ...
+    def _rich_color(self) -> None: ...  # marker method
 
 
 RECENT_COLORS: deque[ColorRGB] = deque(maxlen=12)
@@ -442,6 +451,8 @@ GROUPS: dict[str, tuple[ColorName, ...]] = {
 
 
 ################################################################################
+
+
 class StandardColor:
     def __init__(self, calib: CalibrationData, ci: int, cj: int) -> None:
         super().__init__()
@@ -469,6 +480,9 @@ class StandardColor:
     def apply(self) -> None:
         apply_or_recent(self.calib, self.rgb(), self._apply)
 
+    def _color(self) -> None:
+        pass
+
 
 if TYPE_CHECKING:
     _standard_color: Color = StandardColor.__new__(StandardColor)
@@ -486,6 +500,9 @@ class NoFillColor(Color):
     def apply(self) -> None:
         open_bucket(self.calib)
         click(*self.calib.color_no_fill)
+
+    def _color(self) -> None:
+        pass
 
 
 if TYPE_CHECKING:
@@ -552,6 +569,9 @@ class RandomOnceColor(Color):
         """Return the coordinates of the color in the palette."""
         return self.color
 
+    def _color(self) -> None:
+        pass
+
 
 if TYPE_CHECKING:
     _random_once_color: Color = RandomOnceColor.__new__(RandomOnceColor)
@@ -583,6 +603,9 @@ class RandomChangingColor(Color):
     def indices(self) -> "tuple[int, int]":
         """Return the coordinates of the color in the palette."""
         return self.color_ij
+
+    def _color(self) -> None:
+        pass
 
 
 if TYPE_CHECKING:
@@ -654,6 +677,9 @@ class ArbitraryColor(Color):
     def apply(self) -> None:
         apply_or_recent(self.calib, self.rgb(), self._apply, cache=self.cache)
 
+    def _color(self) -> None:
+        pass
+
 
 if TYPE_CHECKING:
     _arbitrary_color: Color = ArbitraryColor.__new__(ArbitraryColor)
@@ -699,6 +725,9 @@ class StandardCyclerColor(Color):
             cache=self.cache,
             _finally=self._finally,
         )
+
+    def _color(self) -> None:
+        pass
 
 
 if TYPE_CHECKING:
@@ -751,38 +780,30 @@ def group_by_color(
     return grouped
 
 
-class ColorRectangle:
+class ColoredCell:
     def __init__(
         self,
         calib: CalibrationData,
         color: Color,
-        top_left: cell.CellIJ,
-        bottom_right: cell.CellIJ,
+        cell: cell.CellStr,
     ) -> None:
         self.calib = calib
         self.color = color
+        self.cell = cell
 
-        # rearrange the coordinates to ensure top_left is always the top-left corner
-        if top_left[0] > bottom_right[0]:
-            top_left, bottom_right = bottom_right, top_left
-        if top_left[1] > bottom_right[1]:
-            top_left, bottom_right = (top_left[0], bottom_right[1]), (bottom_right[0], top_left[1])
-
-        self.top_left = top_left
-        self.bottom_right = bottom_right
+    def base(self) -> Color:
+        return self.color
 
     def apply(self) -> None:
-        """Apply the color to the rectangle area defined by top_left and bottom_right."""
-        cell.select_range(
-            self.calib,
-            cell.ij2str(self.top_left),
-            cell.ij2str(self.bottom_right),
-        )
+        click(*cell.cell_coords(self.calib, self.cell))
         self.color.apply()
+
+    def _rich_color(self) -> None:
+        pass
 
 
 if TYPE_CHECKING:
-    _color_rectangle: ColorRectangle = ColorRectangle.__new__(ColorRectangle)
+    _colored_cell: RichColor = ColoredCell.__new__(ColoredCell)
 
 # class ColorPatch:
 #     calib: CalibrationData

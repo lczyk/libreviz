@@ -40,7 +40,7 @@ def _cell_coords_x(calib: CalibrationData, c: "tuple[str, str | int]") -> tuple[
     return _cell_coords_i(calib, (col_index, row_index))
 
 
-def ij2str(c: CellIJ) -> str:
+def ij2str(c: CellIJ) -> CellStr:
     """Convert cell coordinates from (i, j) to 'A:1' format."""
     # col = chr(ord("A") + c[0])
     # row = str(c[1] + 1)

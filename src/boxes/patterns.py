@@ -925,6 +925,41 @@ if TYPE_CHECKING:
     _image: Pattern = Image.__new__(Image)
 
 
+class OneColorTest(_1DBase, _PatternBase):
+    """Pattern that selects all cells in a single color."""
+
+    _name_prefix = "one_color_test"
+
+    def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
+        self.calib = calib
+        self.color = color
+        self._init_1d_base(calib.n_cols * calib.n_rows)
+        self._init_id()
+        self.reset()
+
+    def reset(self) -> None:
+        super().reset()
+        coords = [(i, j, self.color.rgb()) for i in range(self.calib.n_cols) for j in range(self.calib.n_rows)]
+
+        rich_colors: list[colors.RichColor] = [
+            colors.ColoredCell(
+                self.calib,
+                colors.ArbitraryColor(self.calib, *color_rgb),
+                cell.ij2str((i, j)),
+            )
+            for i, j, color_rgb in coords
+        ]
+        self.rich_colors = rich_colors
+
+    def step(self) -> PatternStep:
+        rich_color = self.rich_colors[self.i]
+
+        def _step() -> None:
+            rich_color.apply()
+
+        return _step
+
+
 ################################################################################
 
 

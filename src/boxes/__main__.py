@@ -186,20 +186,11 @@ def run(calib: CalibrationData) -> None:
 
     calib = change_to_square_grid(calib)
 
-    # pyautogui.moveTo(
-    #     *cell.cell_coords(
-    #         calib,
-    #         "CW:1",
-    #     )
-    # )
-    # pyautogui.moveTo(
-    #     *cell.cell_coords(
-    #         calib,
-    #         cell.ij2str(
-    #             (calib.n_cols - 1, calib.n_rows - 1),  # bottom right cell
-    #         ),
-    #     )
-    # )
+    patterns.OneColorTest(
+        calib,
+        colors.StandardColor.from_name(calib, "dark_lime_1"),
+    ).step_all()
+
     # patterns.PaletteTest1(calib).step_all()
 
     patterns.Image(
