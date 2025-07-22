@@ -1,8 +1,9 @@
 import random
 import time
 from collections import deque
-from typing import TYPE_CHECKING, Callable, Protocol, TypeVar
+from typing import TYPE_CHECKING, Callable, Iterator, Protocol, TypeVar
 
+import more_itertools
 import pyautogui
 
 from . import cell
@@ -869,36 +870,102 @@ def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
             raise ValueError(f"Unknown direction: {direction}")
         return ij2
 
+    def _shuffle(choices: list[str]) -> Iterator[str]:
+        yield from more_itertools.sample(choices, len(choices))
+
     simplified_colors: list[RichColor] = []
     while colors_by_ij:
         # pick a random color
         ij, color = colors_by_ij.popitem()
 
         # attempt to expand it to a rectangle
-        found_direction: str | None = None
-        for direction in ["up", "down", "left", "right"]:
-            ij2 = _ij2ij2(ij, direction)
+        first_direction: str | None = None
+        for direction in _shuffle(["up", "down", "left", "right"]):
+            ij_d1 = _ij2ij2(ij, direction)
 
-            if ij2 in colors_by_ij:
-                found_direction = direction
+            if ij_d1 in colors_by_ij:
+                first_direction = direction
                 break
 
-        if found_direction is None:
+        if first_direction is None:
             # no direction in which we can expand this color
             simplified_colors.append(color)
             # we already popped this color from the lookup
             continue
 
-        # we found a direction in which we can expand the color
-        ij2 = _ij2ij2(ij, found_direction)
-        colors_by_ij.pop(ij2, None)  # remove the color in the other direction
+        # we found the first direction in which we can expand the color
+        ij_d1 = _ij2ij2(ij, first_direction)
+        colors_by_ij.pop(ij_d1, None)  # remove the color in the other direction
         # now we can create a rectangle
         rectangle = ColoredRectangle(
             calib=color.calib,
             color=color.base(),
             c1=cell.ij2str(ij),
-            c2=cell.ij2str(ij2),
+            c2=cell.ij2str(ij_d1),
         )
-        simplified_colors.append(rectangle)
+
+        # what about the other direction?
+        second_direction: str | None = None
+        if first_direction in ["up", "down"]:
+            for direction in _shuffle(["left", "right"]):
+                ij_d2 = _ij2ij2(ij, direction)
+                ij_d1_d2 = _ij2ij2(ij_d1, direction)
+                if ij_d2 in colors_by_ij and ij_d1_d2 in colors_by_ij:
+                    second_direction = direction
+                    break
+        else:  # first_direction in ["left", "right"]:
+            for direction in _shuffle(["up", "down"]):
+                ij_d2 = _ij2ij2(ij, direction)
+                ij_d1_d2 = _ij2ij2(ij_d1, direction)
+                if ij_d2 in colors_by_ij and ij_d1_d2 in colors_by_ij:
+                    second_direction = direction
+                    break
+
+        # temporarily set the second direction to none
+        second_direction = None
+
+        if second_direction is None:
+            if first_direction == "up":
+                # carry on expanding up
+                while True:
+                    ij_d1 = _ij2ij2(ij_d1, "up")
+                    if ij_d1 not in colors_by_ij:
+                        break
+                    colors_by_ij.pop(ij_d1, None)  # remove the color in the other direction
+                    rectangle.c2 = cell.ij2str(ij_d1)  # expand the rectangle
+            elif first_direction == "down":
+                # carry on expanding down
+                while True:
+                    ij_d1 = _ij2ij2(ij_d1, "down")
+                    if ij_d1 not in colors_by_ij:
+                        break
+                    colors_by_ij.pop(ij_d1, None)
+                    rectangle.c2 = cell.ij2str(ij_d1)  # expand the rectangle
+            elif first_direction == "left":
+                # carry on expanding left
+                while True:
+                    ij_d1 = _ij2ij2(ij_d1, "left")
+                    if ij_d1 not in colors_by_ij:
+                        break
+                    colors_by_ij.pop(ij_d1, None)
+                    rectangle.c2 = cell.ij2str(ij_d1)
+            elif first_direction == "right":
+                # carry on expanding right
+                while True:
+                    ij_d1 = _ij2ij2(ij_d1, "right")
+                    if ij_d1 not in colors_by_ij:
+                        break
+                    colors_by_ij.pop(ij_d1, None)
+                    rectangle.c2 = cell.ij2str(ij_d1)
+
+            # Expanded this rectangle as much as possible in one direction
+            simplified_colors.append(rectangle)
+            continue
+
+        else:
+            raise NotImplementedError(
+                f"Expanding rectangles in two directions is not implemented yet. "
+                f"First direction: {first_direction}, second direction: {second_direction}"
+            )
 
     return simplified_colors
