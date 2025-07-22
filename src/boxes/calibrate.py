@@ -138,6 +138,43 @@ def _row_column_to_locations(
     )
 
 
+def _top_left_to_corners(
+    box: Box,
+    screen_size: pyautogui.Size,
+    pixel_ratio: int = 1,
+) -> tuple[tuple[float, float], ...]:
+    # top left cell
+    top_left_cell = (
+        box.left / pixel_ratio + 73,
+        box.top / pixel_ratio + box.height / pixel_ratio - 30,
+    )
+
+    # top right cell
+    top_right_cell = (
+        screen_size.width - 105,
+        top_left_cell[1],
+    )
+
+    # bottom left cell
+    bottom_left_cell = (
+        top_left_cell[0],
+        screen_size.height - 70,
+    )
+
+    # bottom right cell
+    bottom_right_cell = (
+        top_right_cell[0],
+        bottom_left_cell[1],
+    )
+
+    return (
+        top_left_cell,
+        top_right_cell,
+        bottom_left_cell,
+        bottom_right_cell,
+    )
+
+
 def calibrate(
     targets_dir: Path,
     pixel_ratio: int = 1,
@@ -156,24 +193,6 @@ def calibrate(
             sys.exit()
 
     targets = {k: str(v) for k, v in _targets.items()}
-
-    # def _reset_height_width() -> None:
-    #     pyautogui.keyDown("command")
-    #     pyautogui.press("a")
-    #     pyautogui.keyUp("command")
-    #     click(*row_settings_location)
-    #     click(*row_height_location)
-    #     for _ in range(10):
-    #         pyautogui.press("delete")
-    #     pyautogui.write(str(cell.DEFAULT_CELL_HEIGHT))
-    #     pyautogui.press("enter")
-
-    #     click(*column_settings_location)
-    #     click(*column_width_location)
-    #     for _ in range(10):
-    #         pyautogui.press("delete")
-    #     pyautogui.write(str(cell.DEFAULT_CELL_WIDTH))
-    #     pyautogui.press("enter")
 
     # locate the image on the screen
     _locations = {
@@ -199,39 +218,26 @@ def calibrate(
         pixel_ratio=pixel_ratio,
     )
 
-    screen_size = pyautogui.size()
+    # screen_size = pyautogui.size()
     # print(f"Screen size: {screen_size}")
 
-    # top left cell
-    top_left_cell = (
-        locations["top_left"].left / pixel_ratio + 73,
-        locations["top_left"].top / pixel_ratio + locations["top_left"].height / pixel_ratio - 30,
+    (
+        top_left_cell,
+        top_right_cell,
+        bottom_left_cell,
+        bottom_right_cell,
+    ) = _top_left_to_corners(
+        locations["top_left"],
+        pyautogui.size(),
+        pixel_ratio=pixel_ratio,
     )
+
     pyautogui.moveTo(*top_left_cell)
     pyautogui.sleep(sleep_time)
-
-    # top right cell
-    top_right_cell = (
-        screen_size.width - 105,
-        top_left_cell[1],
-    )
     pyautogui.moveTo(*top_right_cell)
     pyautogui.sleep(sleep_time)
-
-    # bottom left cell
-    bottom_left_cell = (
-        top_left_cell[0],
-        screen_size.height - 70,
-    )
     pyautogui.moveTo(*bottom_left_cell)
     pyautogui.sleep(sleep_time)
-
-    # bottom right cell
-    bottom_right_cell = (
-        top_right_cell[0],
-        bottom_left_cell[1],
-    )
-
     pyautogui.moveTo(*bottom_right_cell)
     pyautogui.sleep(sleep_time)
 
@@ -239,20 +245,6 @@ def calibrate(
     n_rows = 52
     n_color_cols = 12
     n_color_rows = 10
-
-    # cell_width = (top_right_cell[0] - top_left_cell[0]) / (n_cols - 1)
-    # cell_height = (bottom_left_cell[1] - top_left_cell[1]) / (n_rows - 1)
-
-    # first_row = (
-    #     top_left_cell[0] - cell_width / 2,
-    #     top_left_cell[1],
-    # )
-    # first_row = (first_row[0] - first_row[0] / 2, first_row[1])
-
-    # first_col = (
-    #     top_left_cell[0],
-    #     top_left_cell[1] - cell_height,
-    # )
 
     # move to the bucket icon
     bucket_location_2 = (
@@ -374,3 +366,29 @@ def reset(
         pyautogui.press("delete")
     pyautogui.write(str(cell.DEFAULT_CELL_WIDTH))
     pyautogui.press("enter")
+
+    # find the top left cell
+    top_left_cell_location = locate(str(targets_dir / "top_left_2.png"), confidence=0.8)
+    if top_left_cell_location is None:
+        print("Error: top_left.png not found on screen.")
+        sys.exit()
+
+    top_left_cell = (
+        float(top_left_cell_location.left / pixel_ratio + top_left_cell_location.width / pixel_ratio / 2),
+        float(top_left_cell_location.top / pixel_ratio + top_left_cell_location.height / pixel_ratio / 2),
+    )
+    top_left_cell = (
+        top_left_cell[0] + 20,
+        top_left_cell[1] + 13,
+    )
+
+    # click on A1 cell
+    click(*top_left_cell)
+
+    # select all cells
+    pyautogui.keyDown("command")
+    pyautogui.press("a")
+    pyautogui.keyUp("command")
+
+    # press delete to clear the cells
+    pyautogui.press("delete")
