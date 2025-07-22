@@ -1,6 +1,7 @@
 import base64
 import json
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -16,6 +17,7 @@ from .patched_click import click
 class CalibrationData:
     top_left: tuple[float, float]  # (x, y) coordinates of the top left cell
     bottom_right: tuple[float, float]  # (x, y) coordinates of
+
     last_bucket: tuple[float, float]  # (x, y) coordinates of the last bucket icon
     open_bucket: tuple[float, float]  # (x, y) coordinates of the bucket icon
 
@@ -25,15 +27,9 @@ class CalibrationData:
 
     custom_color: tuple[float, float]  # (x, y) coordinates of the custom color button
 
-    cell_width: float
-    cell_height: float
-
-    color_cell_width: float
-    color_cell_height: float
-
-    # (x, y) coordinates of the label cell for the first column and row
-    first_row: tuple[float, float]
-    first_col: tuple[float, float]
+    # # (x, y) coordinates of the label cell for the first column and row
+    # first_row: tuple[float, float]
+    # first_col: tuple[float, float]
 
     n_cols: int
     n_rows: int
@@ -58,6 +54,47 @@ class CalibrationData:
     def to_b64(self) -> str:
         """Convert the instance to a base64 encoded JSON string."""
         return base64.b64encode(json.dumps(self.__dict__).encode()).decode()
+
+    @property
+    def cell_width(self) -> float:
+        """Width of a single cell."""
+        return abs(self.bottom_right[0] - self.top_left[0]) / (self.n_cols - 1)
+
+    @property
+    def cell_height(self) -> float:
+        """Height of a single cell."""
+        return abs(self.bottom_right[1] - self.top_left[1]) / (self.n_rows - 1)
+
+    @property
+    def color_cell_width(self) -> float:
+        """Width of a single color cell."""
+        return (self.color_bottom_right[0] - self.color_top_left[0]) / (self.n_color_cols - 1)
+
+    @property
+    def color_cell_height(self) -> float:
+        """Height of a single color cell."""
+        return (self.color_bottom_right[1] - self.color_top_left[1]) / (self.n_color_rows - 1)
+
+    @property
+    def first_row(self) -> tuple[float, float]:
+        """Coordinates of the first row label cell."""
+        # go to the center left of top_left_cell
+        first_row = (
+            self.top_left[0] - self.cell_width / 2,
+            self.top_left[1],
+        )
+        # adjust the x coordinate to be half of the cell width
+        # to land on the center of the first row label
+        first_row = (first_row[0] - first_row[0] / 2, first_row[1])
+        return first_row
+
+    @property
+    def first_col(self) -> tuple[float, float]:
+        """Coordinates of the first column label cell."""
+        return (
+            self.top_left[0],
+            self.top_left[1] - self.cell_height,
+        )
 
 
 def locate(
@@ -157,7 +194,10 @@ def calibrate(
         row_height_location,
         column_settings_location,
         column_width_location,
-    ) = _row_column_to_locations(locations["row_column"])
+    ) = _row_column_to_locations(
+        locations["row_column"],
+        pixel_ratio=pixel_ratio,
+    )
 
     screen_size = pyautogui.size()
     # print(f"Screen size: {screen_size}")
@@ -200,19 +240,19 @@ def calibrate(
     n_color_cols = 12
     n_color_rows = 10
 
-    cell_width = (top_right_cell[0] - top_left_cell[0]) / (n_cols - 1)
-    cell_height = (bottom_left_cell[1] - top_left_cell[1]) / (n_rows - 1)
+    # cell_width = (top_right_cell[0] - top_left_cell[0]) / (n_cols - 1)
+    # cell_height = (bottom_left_cell[1] - top_left_cell[1]) / (n_rows - 1)
 
-    first_row = (
-        top_left_cell[0] - cell_width / 2,
-        top_left_cell[1],
-    )
-    first_row = (first_row[0] - first_row[0] / 2, first_row[1])
+    # first_row = (
+    #     top_left_cell[0] - cell_width / 2,
+    #     top_left_cell[1],
+    # )
+    # first_row = (first_row[0] - first_row[0] / 2, first_row[1])
 
-    first_col = (
-        top_left_cell[0],
-        top_left_cell[1] - cell_height,
-    )
+    # first_col = (
+    #     top_left_cell[0],
+    #     top_left_cell[1] - cell_height,
+    # )
 
     # move to the bucket icon
     bucket_location_2 = (
@@ -252,8 +292,8 @@ def calibrate(
 
     pyautogui.moveTo(*custom_color)
 
-    color_cell_width = (bottom_right_color[0] - top_left_color[0]) / (n_color_cols - 1)
-    color_cell_height = (bottom_right_color[1] - top_left_color[1]) / (n_color_rows - 1)
+    # color_cell_width = (bottom_right_color[0] - top_left_color[0]) / (n_color_cols - 1)
+    # color_cell_height = (bottom_right_color[1] - top_left_color[1]) / (n_color_rows - 1)
     # _click(*top_left_cell)
 
     # display a message box to check whether we want to proceed
@@ -278,13 +318,7 @@ def calibrate(
         color_no_fill=no_fill_location,
         color_top_left=top_left_color,
         color_bottom_right=bottom_right_color,
-        color_cell_width=color_cell_width,
-        color_cell_height=color_cell_height,
         custom_color=custom_color,
-        first_row=first_row,
-        first_col=first_col,
-        cell_width=cell_width,
-        cell_height=cell_height,
         n_cols=n_cols,
         n_rows=n_rows,
         n_color_cols=n_color_cols,
@@ -313,20 +347,29 @@ def reset(
         row_height_location,
         column_settings_location,
         column_width_location,
-    ) = _row_column_to_locations(row_column_location, pixel_ratio=pixel_ratio)
+    ) = _row_column_to_locations(
+        row_column_location,
+        pixel_ratio=pixel_ratio,
+    )
 
     pyautogui.keyDown("command")
     pyautogui.press("a")
     pyautogui.keyUp("command")
+
+    # click on the row settings button
     click(*row_settings_location)
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
     click(*row_height_location)
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
     for _ in range(10):
         pyautogui.press("delete")
     pyautogui.write(str(cell.DEFAULT_CELL_HEIGHT))
     pyautogui.press("enter")
 
     click(*column_settings_location)
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
     click(*column_width_location)
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
     for _ in range(10):
         pyautogui.press("delete")
     pyautogui.write(str(cell.DEFAULT_CELL_WIDTH))

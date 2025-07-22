@@ -22,7 +22,16 @@ def _cell_coords_i(calib: CalibrationData, c: tuple[int, int]) -> tuple[float, f
 def _cell_coords_x(calib: CalibrationData, c: "tuple[str, str | int]") -> tuple[float, float]:
     """Move to the specified cell in the grid by column letter and row number."""
     col, row = c
-    col_index = ord(col.upper()) - ord("A")
+
+    if len(col) == 1:
+        col_index = ord(col.upper()) - ord("A")
+    else:
+        # Handle multi-letter columns (e.g., "AA", "AB", etc.)
+        col_index = 0
+        for i, char in enumerate(col.upper()[::-1]):
+            col_index += (ord(char) - ord("A") + 1) * (26**i)
+        col_index -= 1  # Adjust for zero-based index
+
     if col_index < -1 or col_index >= calib.n_cols:
         raise ValueError(f"Column {col} is out of range.")
     row_index = int(row) - 1
@@ -33,15 +42,33 @@ def _cell_coords_x(calib: CalibrationData, c: "tuple[str, str | int]") -> tuple[
 
 def ij2str(c: CellIJ) -> str:
     """Convert cell coordinates from (i, j) to 'A:1' format."""
-    col = chr(ord("A") + c[0])
-    row = str(c[1] + 1)
+    # col = chr(ord("A") + c[0])
+    # row = str(c[1] + 1)
+    col_index, row_index = c
+    if col_index > ord("Z") - ord("A"):
+        # Handle multi-letter columns (e.g., "AA", "AB", etc.)
+        col = ""
+        while col_index >= 0:
+            col = chr(ord("A") + (col_index % 26)) + col
+            col_index = col_index // 26 - 1
+    else:
+        col = chr(ord("A") + col_index)
+    row = str(row_index + 1)
     return f"{col}:{row}"
+    # return f"{col}:{row}"
 
 
 def str2ij(c: CellStr) -> CellIJ:
     """Convert cell coordinates from 'A:1' format to (i, j)."""
     col, row = c.split(":")
-    col_index = ord(col.upper()) - ord("A")
+    if len(col) == 1:
+        col_index = ord(col.upper()) - ord("A")
+    else:
+        # Handle multi-letter columns (e.g., "AA", "AB", etc.)
+        col_index = 0
+        for i, char in enumerate(col.upper()[::-1]):
+            col_index += (ord(char) - ord("A") + 1) * (26**i)
+        col_index -= 1
     row_index = int(row) - 1
     return (col_index, row_index)
 
@@ -125,18 +152,27 @@ def change_cell_dimensions(
     cell_height: float = DEFAULT_CELL_HEIGHT,
 ) -> None:
     """Change the cell dimensions in the calibration data."""
+    # select all cells
+    click(*cell_coords(calib, "A:1"))
     pyautogui.keyDown("command")
     pyautogui.press("a")
     pyautogui.keyUp("command")
+
+    # change the height
     click(*calib.row_settings_location)
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
     click(*calib.row_height_location)
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
     for _ in range(10):
         pyautogui.press("delete")
     pyautogui.write(str(cell_height))
     pyautogui.press("enter")
 
+    # change the width
     click(*calib.column_settings_location)
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
     click(*calib.column_width_location)
+    time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
     for _ in range(10):
         pyautogui.press("delete")
     pyautogui.write(str(cell_width))

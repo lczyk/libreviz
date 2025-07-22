@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "opencv-python>=4.12.0.88",
+    "pillow>=11.3.0",
     "pyautogui>=0.9.54",
     "pynput>=1.8.1",
     # "more-itertools>=10.7.0"
@@ -15,6 +16,7 @@ dependencies = [
 dev = [
     "mypy>=1.16.1",
     "pytest>=8.4.1",
+    "pytest-subtests>=0.14.2",
     "ruff>=0.12.3",
     "types-pyautogui>=0.9.3.20241230",
     "types-pynput>=1.8.1.20250318",

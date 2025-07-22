@@ -4,6 +4,7 @@ import random
 import sys
 import time
 from collections import deque
+from dataclasses import replace
 from typing import Literal
 
 import pyautogui
@@ -51,6 +52,8 @@ def main() -> None:
             targets_dir=__project_root__ / "targets",
             pixel_ratio=2,  # 1 on most monitors, 2 on high DPI monitors
         )
+
+        os.execv(sys.executable, [sys.executable, "-m", "src.boxes"])
 
     elif sys.argv[1] == "calibrate":
         calibration_data = calibrate(
@@ -147,6 +150,30 @@ def fires_up_night_down(calib: CalibrationData) -> None:
     ).step_all()
 
 
+def change_to_square_grid(calib: CalibrationData) -> CalibrationData:
+    cell.change_cell_dimensions(
+        calib,
+        cell_width=cell.DEFAULT_CELL_HEIGHT,
+        cell_height=cell.DEFAULT_CELL_HEIGHT,
+    )
+
+    # manually adjust the calibration data to fit the new cell dimensions
+    calib2 = replace(
+        calib,
+        n_cols=101,  # CW
+        n_rows=52,
+        top_left=(
+            calib.top_left[0] - calib.cell_width / 2 + 8,
+            calib.top_left[1],
+        ),
+        bottom_right=(
+            calib.bottom_right[0] + calib.cell_width / 2,
+            calib.bottom_right[1],
+        ),
+    )
+    return calib2
+
+
 def run(calib: CalibrationData) -> None:
     colors.reset_all_colors(calib)
     text.reset_all_cell_contents(calib)
@@ -157,19 +184,31 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.0
     pyautogui.PAUSE = 0.03
 
-    time.sleep(1.0)
+    calib = change_to_square_grid(calib)
 
-    cell.change_cell_dimensions(calib, cell_width=0.5, cell_height=0.5)
-
+    # pyautogui.moveTo(
+    #     *cell.cell_coords(
+    #         calib,
+    #         "CW:1",
+    #     )
+    # )
+    # pyautogui.moveTo(
+    #     *cell.cell_coords(
+    #         calib,
+    #         cell.ij2str(
+    #             (calib.n_cols - 1, calib.n_rows - 1),  # bottom right cell
+    #         ),
+    #     )
+    # )
     # patterns.PaletteTest1(calib).step_all()
 
-    # patterns.Image(
-    #     calib,
-    #     image=__project_root__ / "img" / "logo.png",
-    #     mode="crop",
-    # ).step_all()
+    patterns.Image(
+        calib,
+        image=__project_root__ / "img" / "logo.png",
+        mode="crop",
+    ).step_all()
 
-    exit()
+    sys.exit()
 
     while True:
         fires_up_night_down(calib)
