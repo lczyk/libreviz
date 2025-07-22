@@ -182,13 +182,14 @@ def run(calib: CalibrationData) -> None:
     p: list[patterns.Pattern]
 
     # pyautogui.PAUSE = 0.0
-    pyautogui.PAUSE = 0.03
+    # pyautogui.PAUSE = 0.03
+    pyautogui.PAUSE = 0.2
 
     # calib = change_to_square_grid(calib)
 
     patterns.OneColorTest(
         calib,
-        colors.StandardColor.from_name(calib, "dark_lime_1"),
+        colors.StandardColor.from_name(calib, "light_yellow_4"),
     ).step_all()
 
     # patterns.PaletteTest1(calib).step_all()

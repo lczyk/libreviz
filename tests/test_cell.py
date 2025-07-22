@@ -1,6 +1,6 @@
-from src.boxes import cell
+from conftest import Subtests
 
-from .conftest import Subtests
+from src.boxes import cell
 
 
 def test_str_ij_conversion(subtests: Subtests) -> None:

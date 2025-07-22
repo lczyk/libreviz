@@ -840,6 +840,74 @@ if TYPE_CHECKING:
     _colored_rectangle: RichColor = ColoredRectangle.__new__(ColoredRectangle)
 
 
+def _ij2other(ij: cell.CellIJ, ij_d1: cell.CellIJ, ij_d2: cell.CellIJ) -> list[cell.CellIJ]:
+    """
+    Given original ij and two directions ij_d1 and ij_d2,
+    return the other points which would for a rectangle, as well as the
+    antagonist point (the one opposite to the original ij).
+    """
+
+    # sanity check. make sure that ij_d1 and ij_d2 have exactly one
+    # coordinate in common with ij
+
+    same_x: cell.CellIJ
+    if ij[0] == ij_d1[0]:
+        same_x = ij_d1
+    elif ij[0] == ij_d2[0]:
+        same_x = ij_d2
+    else:
+        raise ValueError(f"ij {ij} does not share x coordinate with ij_d1 {ij_d1} or ij_d2 {ij_d2}")
+
+    same_y: cell.CellIJ
+    if ij[1] == ij_d1[1]:
+        same_y = ij_d1
+    elif ij[1] == ij_d2[1]:
+        same_y = ij_d2
+    else:
+        raise ValueError(f"ij {ij} does not share y coordinate with ij_d1 {ij_d1} or ij_d2 {ij_d2}")
+
+    Dx = same_y[0] - ij[0]
+    Dy = same_x[1] - ij[1]
+
+    assert Dx != 0
+    assert Dy != 0
+
+    other: list[cell.CellIJ] = []
+
+    dx_range = range(0, Dx + 1, 1) if Dx > 0 else range(0, Dx - 1, -1)
+    dy_range = range(0, Dy + 1, 1) if Dy > 0 else range(0, Dy - 1, -1)
+    for dx in dx_range:
+        for dy in dy_range:
+            # NOTE: we don't want the original ij,
+            # and we don't want the axes, hence the 'or'
+            if dx == 0 or dy == 0:
+                continue
+
+            other.append(
+                (
+                    ij[0] + dx,
+                    ij[1] + dy,
+                )
+            )
+
+    # filter out only the points in the direction perpendicular to d1
+    if same_x == ij_d1:  # noqa: SIM108
+        # d1 is vertical, so we want horizontal points
+        other = [o for o in other if o[1] == ij_d1[1]]
+    else:  # same_y == ij_d1:
+        other = [o for o in other if o[0] == ij_d1[0]]
+
+    # temp sanity check.
+    # we should not be calling this to get no cells back
+    assert other
+
+    antagonist = (same_y[0], same_x[1])  # swap the coordinates
+
+    assert other[-1] == antagonist, f"Expected antagonist {antagonist} but got {other[-1]}"
+
+    return other
+
+
 def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
     """
     Assume we get a list of RichColor objects which we consider to be monochrome.
@@ -872,73 +940,6 @@ def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
 
     def _shuffle(choices: list[str]) -> Iterator[str]:
         yield from more_itertools.sample(choices, len(choices))
-
-    def _ij2other(ij: cell.CellIJ, ij_d1: cell.CellIJ, ij_d2: cell.CellIJ) -> list[cell.CellIJ]:
-        """
-        Given original ij and two directions ij_d1 and ij_d2,
-        return the other points which would for a rectangle, as well as the
-        antagonist point (the one opposite to the original ij).
-        """
-
-        # sanity check. make sure that ij_d1 and ij_d2 have exactly one
-        # coordinate in common with ij
-
-        same_x: cell.CellIJ
-        if ij[0] == ij_d1[0]:
-            same_x = ij_d1
-        elif ij[0] == ij_d2[0]:
-            same_x = ij_d2
-        else:
-            raise ValueError(f"ij {ij} does not share x coordinate with ij_d1 {ij_d1} or ij_d2 {ij_d2}")
-
-        same_y: cell.CellIJ
-        if ij[1] == ij_d1[1]:
-            same_y = ij_d1
-        elif ij[1] == ij_d2[1]:
-            same_y = ij_d2
-        else:
-            raise ValueError(f"ij {ij} does not share y coordinate with ij_d1 {ij_d1} or ij_d2 {ij_d2}")
-
-        Dx = same_y[0] - ij[0]
-        Dy = same_x[1] - ij[1]
-
-        assert Dx != 0
-        assert Dy != 0
-
-        other: list[cell.CellIJ] = []
-
-        dx_range = range(0, Dx + 1, 1) if Dx > 0 else range(0, Dx - 1, -1)
-        dy_range = range(0, Dy + 1, 1) if Dy > 0 else range(0, Dy - 1, -1)
-        for dx in dx_range:
-            for dy in dy_range:
-                # NOTE: we don't want the original ij,
-                # and we don't want the axes, hence the 'or'
-                if dx == 0 or dy == 0:
-                    continue
-
-                other.append(
-                    (
-                        ij[0] + dx,
-                        ij[1] + dy,
-                    )
-                )
-
-        # filter out only the points in the direction perpendicular to d1
-        if same_x == ij_d1:  # noqa: SIM108
-            # d1 is vertical, so we want horizontal points
-            other = [o for o in other if o[1] == ij_d1[1]]
-        else:  # same_y == ij_d1:
-            other = [o for o in other if o[0] == ij_d1[0]]
-
-        # temp sanity check.
-        # we should not be calling this to get no cells back
-        assert other
-
-        antagonist = (same_y[0], same_x[1])  # swap the coordinates
-
-        assert other[-1] == antagonist, f"Expected antagonist {antagonist} but got {other[-1]}"
-
-        return other
 
     simplified_colors: list[RichColor] = []
     while colors_by_ij:
@@ -975,16 +976,16 @@ def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
         second_direction: str | None = None
         if first_direction in ["up", "down"]:
             for direction in _shuffle(["left", "right"]):
-                ij_d2 = _ij2ij2(ij, direction)
-                ij_d1_d2 = _ij2ij2(ij_d1, direction)
-                if ij_d2 in colors_by_ij and ij_d1_d2 in colors_by_ij:
+                _ij_d2 = _ij2ij2(ij, direction)
+                _ij_d1_d2 = _ij2ij2(ij_d1, direction)
+                if _ij_d2 in colors_by_ij and _ij_d1_d2 in colors_by_ij:
                     second_direction = direction
                     break
         else:  # first_direction in ["left", "right"]:
             for direction in _shuffle(["up", "down"]):
-                ij_d2 = _ij2ij2(ij, direction)
-                ij_d1_d2 = _ij2ij2(ij_d1, direction)
-                if ij_d2 in colors_by_ij and ij_d1_d2 in colors_by_ij:
+                _ij_d2 = _ij2ij2(ij, direction)
+                _ij_d1_d2 = _ij2ij2(ij_d1, direction)
+                if _ij_d2 in colors_by_ij and _ij_d1_d2 in colors_by_ij:
                     second_direction = direction
                     break
 
@@ -1004,76 +1005,95 @@ def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
             colors_by_ij.pop(ij_d1_d2, None)
             rectangle.c2 = cell.ij2str(ij_d1_d2)
 
+            # try to expand in the first direction as much as possible
             done_with_first_direction = False
-            done_with_second_direction = False
-            which = "first"
-            while not done_with_first_direction or not done_with_second_direction:
-                if which == "first":
-                    if done_with_first_direction:
-                        # we already expanded in the first direction,
-                        # so we can only expand in the second direction
-                        which = "second"
-                        continue
-                    # attempt to expand in the first direction
-                    # the new point has to be in the lookup
-                    ij_d1 = _ij2ij2(ij_d1, first_direction)
-                    if ij_d1 not in colors_by_ij:
-                        done_with_first_direction = True
-                        continue
+            while not done_with_first_direction:
+                _ij_d1 = _ij2ij2(ij_d1, first_direction)
+                _ij_d1_d2 = _ij2ij2(ij_d1_d2, first_direction)
 
-                    # All the other points also have to be in the lookup
-                    other_ij = _ij2other(ij, ij_d1, ij_d2)
-
-                    # # break in the debugger
-                    # import pdb
-
-                    # pdb.set_trace()
-
-                    for ij_d1_d2 in other_ij:
-                        if ij_d1_d2 not in colors_by_ij:
-                            done_with_first_direction = True
-                            break
-                    # NOTE: double break
-                    if done_with_first_direction:
-                        continue
-
-                    # we can expand the rectangle
+                if _ij_d1 in colors_by_ij and _ij_d1_d2 in colors_by_ij:
+                    ij_d1 = _ij_d1
+                    ij_d1_d2 = _ij_d1_d2
                     colors_by_ij.pop(ij_d1, None)
-                    for ij_d1_d2 in other_ij:
-                        colors_by_ij.pop(ij_d1_d2, None)
-                    rectangle.c2 = cell.ij2str(other_ij[-1])
+                    colors_by_ij.pop(ij_d1_d2, None)
+                    rectangle.c2 = cell.ij2str(ij_d1_d2)
+                else:
+                    done_with_first_direction = True
 
-                else:  # which == "second"
-                    if done_with_second_direction:
-                        # we already expanded in the second direction,
-                        # so we can only expand in the first direction
-                        which = "first"
-                        continue
-                    # attempt to expand in the second direction
-                    ij_d2 = _ij2ij2(ij_d2, second_direction)
-                    if ij_d2 not in colors_by_ij:
-                        done_with_second_direction = True
-                        continue
+            #
+            # done_with_first_direction = False
+            # done_with_second_direction = False
+            # done_with_second_direction = True
+            # which = "first"
+            # while not done_with_first_direction or not done_with_second_direction:
+            #     if which == "first":
+            #         if done_with_first_direction:
+            #             # we already expanded in the first direction,
+            #             # so we can only expand in the second direction
+            #             which = "second"
+            #             continue
 
-                    # All the other points also have to be in the lookup
-                    other_ij = _ij2other(ij, ij_d1, ij_d2)
-                    for ij_d1_d2 in other_ij:
-                        if ij_d1_d2 not in colors_by_ij:
-                            done_with_second_direction = True
-                            break
+            #         # attempt to expand in the first direction
+            #         # the new point has to be in the lookup
+            #         ij_d1 = _ij2ij2(ij_d1, first_direction)
+            #         if ij_d1 not in colors_by_ij:
+            #             done_with_first_direction = True
+            #             continue
 
-                    # NOTE: double break
-                    if done_with_second_direction:
-                        continue
+            #         # All the other points also have to be in the lookup
+            #         other_ij = _ij2other(ij, ij_d1, ij_d2)
 
-                    # we can expand the rectangle
-                    colors_by_ij.pop(ij_d2, None)
-                    for ij_d1_d2 in other_ij:
-                        colors_by_ij.pop(ij_d1_d2, None)
-                    rectangle.c2 = cell.ij2str(other_ij[-1])
+            #         # # break in the debugger
+            #         # import pdb
 
-                # toggle which direction we're expanding
-                which = "second" if which == "first" else "first"
+            #         # pdb.set_trace()
+
+            #         for ij_d1_d2 in other_ij:
+            #             if ij_d1_d2 not in colors_by_ij:
+            #                 done_with_first_direction = True
+            #                 break
+            #         # NOTE: double break
+            #         if done_with_first_direction:
+            #             continue
+
+            #         # we can expand the rectangle
+            #         colors_by_ij.pop(ij_d1, None)
+            #         for ij_d1_d2 in other_ij:
+            #             colors_by_ij.pop(ij_d1_d2, None)
+            #         rectangle.c2 = cell.ij2str(other_ij[-1])
+
+            #     else:  # which == "second"
+            #         if done_with_second_direction:
+            #             # we already expanded in the second direction,
+            #             # so we can only expand in the first direction
+            #             which = "first"
+            #             continue
+            #         # attempt to expand in the second direction
+            #         ij_d2 = _ij2ij2(ij_d2, second_direction)
+            #         if ij_d2 not in colors_by_ij:
+            #             done_with_second_direction = True
+            #             continue
+
+            #         # All the other points also have to be in the lookup
+            #         other_ij = _ij2other(ij, ij_d2, ij_d1)
+
+            #         for ij_d1_d2 in other_ij:
+            #             if ij_d1_d2 not in colors_by_ij:
+            #                 done_with_second_direction = True
+            #                 break
+
+            #         # NOTE: double break
+            #         if done_with_second_direction:
+            #             continue
+
+            #         # we can expand the rectangle
+            #         colors_by_ij.pop(ij_d2, None)
+            #         for ij_d1_d2 in other_ij:
+            #             colors_by_ij.pop(ij_d1_d2, None)
+            #         rectangle.c2 = cell.ij2str(other_ij[-1])
+
+            #     # toggle which direction we're expanding
+            #     which = "second" if which == "first" else "first"
 
         # add the rectangle to the list of simplified colors
         simplified_colors.append(rectangle)
