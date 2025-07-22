@@ -908,7 +908,10 @@ def _ij2other(ij: cell.CellIJ, ij_d1: cell.CellIJ, ij_d2: cell.CellIJ) -> list[c
     return other
 
 
-def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
+def simplify_monochrome_colors(
+    colors: list[ColoredCell],
+    early_stop: bool = False,  # can be used for aesthetic reasons
+) -> list[RichColor]:
     """
     Assume we get a list of RichColor objects which we consider to be monochrome.
     """
@@ -1055,6 +1058,102 @@ def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
                 for _ij in _ij_between:
                     colors_by_ij.pop(_ij, None)
                 rectangle.c2 = cell.ij2str(ij_d1_d2)
+
+            if early_stop:
+                # if we want to stop early, we can just skip the expansion
+                # in the opposite direction
+                simplified_colors.append(rectangle)
+                continue
+
+            # now try to expand in the direction opposite to the first direction
+            first_direction_opposite: str
+            if first_direction == "up":
+                first_direction_opposite = "down"
+            elif first_direction == "down":
+                first_direction_opposite = "up"
+            elif first_direction == "left":
+                first_direction_opposite = "right"
+            else:  # first_direction == "right":
+                first_direction_opposite = "left"
+
+            # initialize the points used for the expansion
+            ij_d3 = ij
+            ij_d2_d3 = ij_d2
+
+            while True:
+                _ij_d3 = _ij2ij2(ij_d3, first_direction_opposite)
+                if _ij_d3 not in colors_by_ij:
+                    break
+                _ij_d2_d3 = _ij2ij2(ij_d2_d3, first_direction_opposite)
+                if _ij_d2_d3 not in colors_by_ij:
+                    break
+
+                _ij_between = []
+                if _ij_d3[0] == _ij_d2_d3[0]:
+                    for i in range(_ij_d3[1], _ij_d2_d3[1], 1 if _ij_d2_d3[1] > _ij_d3[1] else -1):
+                        _ij_between.extend([(_ij_d3[0], i)])
+                else:
+                    assert _ij_d3[1] == _ij_d2_d3[1]
+                    for i in range(_ij_d3[0], _ij_d2_d3[0], 1 if _ij_d2_d3[0] > _ij_d3[0] else -1):
+                        _ij_between.extend([(i, _ij_d3[1])])
+
+                _break = False
+                for _ij in _ij_between:
+                    if _ij not in colors_by_ij:
+                        _break = True
+                        break
+                if _break:
+                    break
+
+                ij_d3, ij_d2_d3 = _ij_d3, _ij_d2_d3
+                colors_by_ij.pop(ij_d3, None)
+                colors_by_ij.pop(ij_d2_d3, None)
+                for _ij in _ij_between:
+                    colors_by_ij.pop(_ij, None)
+                rectangle.c1 = cell.ij2str(ij_d3)
+
+            # finally expand in the direction opposite to the second direction
+            second_direction_opposite: str
+            if second_direction == "up":
+                second_direction_opposite = "down"
+            elif second_direction == "down":
+                second_direction_opposite = "up"
+            elif second_direction == "left":
+                second_direction_opposite = "right"
+            else:  # second_direction == "right":
+                second_direction_opposite = "left"
+
+            while True:
+                _ij_d3 = _ij2ij2(ij_d3, second_direction_opposite)
+                if _ij_d3 not in colors_by_ij:
+                    break
+                _ij_d1 = _ij2ij2(ij_d1, second_direction_opposite)
+                if _ij_d1 not in colors_by_ij:
+                    break
+
+                _ij_between = []
+                if _ij_d3[0] == _ij_d1[0]:
+                    for i in range(_ij_d3[1], _ij_d1[1], 1 if _ij_d1[1] > _ij_d3[1] else -1):
+                        _ij_between.extend([(_ij_d3[0], i)])
+                else:
+                    assert _ij_d3[1] == _ij_d1[1]
+                    for i in range(_ij_d3[0], _ij_d1[0], 1 if _ij_d1[0] > _ij_d3[0] else -1):
+                        _ij_between.extend([(i, _ij_d3[1])])
+
+                _break = False
+                for _ij in _ij_between:
+                    if _ij not in colors_by_ij:
+                        _break = True
+                        break
+                if _break:
+                    break
+
+                ij_d3, ij_d1 = _ij_d3, _ij_d1
+                colors_by_ij.pop(ij_d3, None)
+                colors_by_ij.pop(ij_d1, None)
+                for _ij in _ij_between:
+                    colors_by_ij.pop(_ij, None)
+                rectangle.c1 = cell.ij2str(ij_d3)
 
         # add the rectangle to the list of simplified colors
         simplified_colors.append(rectangle)

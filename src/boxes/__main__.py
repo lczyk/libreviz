@@ -198,6 +198,7 @@ def run(calib: CalibrationData) -> None:
         calib,
         image=__project_root__ / "img" / "logo.png",
         mode="crop",
+        color_distance_tolerance=100,
     ).step_all()
 
     sys.exit()

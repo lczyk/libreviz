@@ -814,8 +814,10 @@ class Image(_1DBase, _PatternBase):
         image: Path,
         *,
         mode: Literal["resize", "crop"] = "resize",
+        color_distance_tolerance: int = 10,
     ) -> None:
         self.calib = calib
+        self.color_distance_tolerance = color_distance_tolerance
 
         # load image using numpy
         img1 = PILImage.open(image)
@@ -886,7 +888,7 @@ class Image(_1DBase, _PatternBase):
         grouped_coords = colors.group_by_color(
             coords_and_colors,
             color_accessor=lambda x: x[1],
-            distance_tol=10,
+            distance_tol=self.color_distance_tolerance,
             # shuffle=True,
         )
 
