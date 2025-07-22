@@ -1006,94 +1006,55 @@ def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
             rectangle.c2 = cell.ij2str(ij_d1_d2)
 
             # try to expand in the first direction as much as possible
-            done_with_first_direction = False
-            while not done_with_first_direction:
+            while True:
                 _ij_d1 = _ij2ij2(ij_d1, first_direction)
+                if _ij_d1 not in colors_by_ij:
+                    break
                 _ij_d1_d2 = _ij2ij2(ij_d1_d2, first_direction)
+                if _ij_d1_d2 not in colors_by_ij:
+                    break
 
-                if _ij_d1 in colors_by_ij and _ij_d1_d2 in colors_by_ij:
-                    ij_d1 = _ij_d1
-                    ij_d1_d2 = _ij_d1_d2
-                    colors_by_ij.pop(ij_d1, None)
-                    colors_by_ij.pop(ij_d1_d2, None)
-                    rectangle.c2 = cell.ij2str(ij_d1_d2)
+                ij_d1, ij_d1_d2 = _ij_d1, _ij_d1_d2
+                colors_by_ij.pop(ij_d1, None)
+                colors_by_ij.pop(ij_d1_d2, None)
+                rectangle.c2 = cell.ij2str(ij_d1_d2)
+
+            # try to expand in the second direction
+            # NOTE: now we actually need to keep track of cells other than
+            # the extra ij_d1_d2
+            while True:
+                _ij_d2 = _ij2ij2(ij_d2, second_direction)
+                if _ij_d2 not in colors_by_ij:
+                    # print("_ij_d2 not in colors")
+                    break
+                _ij_d1_d2 = _ij2ij2(_ij_d1_d2, second_direction)
+                if _ij_d1_d2 not in colors_by_ij:
+                    # print("_ij_d1_d2 not in colors")
+                    break
+
+                _ij_between: list[cell.CellIJ] = []
+                if _ij_d2[0] == _ij_d1_d2[0]:
+                    for i in range(_ij_d2[1], _ij_d1_d2[1], 1 if _ij_d1_d2[1] > _ij_d2[1] else -1):
+                        _ij_between.extend([(_ij_d2[0], i)])
                 else:
-                    done_with_first_direction = True
+                    assert _ij_d2[1] == _ij_d1_d2[1]
+                    for i in range(_ij_d2[0], _ij_d1_d2[0], 1 if _ij_d1_d2[0] > _ij_d2[0] else -1):
+                        _ij_between.extend([(i, _ij_d2[1])])
 
-            #
-            # done_with_first_direction = False
-            # done_with_second_direction = False
-            # done_with_second_direction = True
-            # which = "first"
-            # while not done_with_first_direction or not done_with_second_direction:
-            #     if which == "first":
-            #         if done_with_first_direction:
-            #             # we already expanded in the first direction,
-            #             # so we can only expand in the second direction
-            #             which = "second"
-            #             continue
+                _break = False
+                for _ij in _ij_between:
+                    if _ij not in colors_by_ij:
+                        _break = True
+                        break
+                if _break:
+                    break
 
-            #         # attempt to expand in the first direction
-            #         # the new point has to be in the lookup
-            #         ij_d1 = _ij2ij2(ij_d1, first_direction)
-            #         if ij_d1 not in colors_by_ij:
-            #             done_with_first_direction = True
-            #             continue
-
-            #         # All the other points also have to be in the lookup
-            #         other_ij = _ij2other(ij, ij_d1, ij_d2)
-
-            #         # # break in the debugger
-            #         # import pdb
-
-            #         # pdb.set_trace()
-
-            #         for ij_d1_d2 in other_ij:
-            #             if ij_d1_d2 not in colors_by_ij:
-            #                 done_with_first_direction = True
-            #                 break
-            #         # NOTE: double break
-            #         if done_with_first_direction:
-            #             continue
-
-            #         # we can expand the rectangle
-            #         colors_by_ij.pop(ij_d1, None)
-            #         for ij_d1_d2 in other_ij:
-            #             colors_by_ij.pop(ij_d1_d2, None)
-            #         rectangle.c2 = cell.ij2str(other_ij[-1])
-
-            #     else:  # which == "second"
-            #         if done_with_second_direction:
-            #             # we already expanded in the second direction,
-            #             # so we can only expand in the first direction
-            #             which = "first"
-            #             continue
-            #         # attempt to expand in the second direction
-            #         ij_d2 = _ij2ij2(ij_d2, second_direction)
-            #         if ij_d2 not in colors_by_ij:
-            #             done_with_second_direction = True
-            #             continue
-
-            #         # All the other points also have to be in the lookup
-            #         other_ij = _ij2other(ij, ij_d2, ij_d1)
-
-            #         for ij_d1_d2 in other_ij:
-            #             if ij_d1_d2 not in colors_by_ij:
-            #                 done_with_second_direction = True
-            #                 break
-
-            #         # NOTE: double break
-            #         if done_with_second_direction:
-            #             continue
-
-            #         # we can expand the rectangle
-            #         colors_by_ij.pop(ij_d2, None)
-            #         for ij_d1_d2 in other_ij:
-            #             colors_by_ij.pop(ij_d1_d2, None)
-            #         rectangle.c2 = cell.ij2str(other_ij[-1])
-
-            #     # toggle which direction we're expanding
-            #     which = "second" if which == "first" else "first"
+                ij_d2, ij_d1_d2 = _ij_d2, _ij_d1_d2
+                colors_by_ij.pop(ij_d2, None)
+                colors_by_ij.pop(ij_d1_d2, None)
+                for _ij in _ij_between:
+                    colors_by_ij.pop(_ij, None)
+                rectangle.c2 = cell.ij2str(ij_d1_d2)
 
         # add the rectangle to the list of simplified colors
         simplified_colors.append(rectangle)
