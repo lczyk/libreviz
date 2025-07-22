@@ -82,11 +82,17 @@ def select_range(calib: CalibrationData, c1: CellStr, c2: CellStr) -> None:
     """Select a range of cells from (col1, row1) to (col2, row2)."""
     click(*cell_coords(calib, c1))
     if c2 != c1:
-        # sometime, rarely, the shift lands before the click
+        # sometime, rarely, the shift lands before the first click
+        # above
         time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
+
         pyautogui.keyDown("shift")
         click(*cell_coords(calib, c2))
         pyautogui.keyUp("shift")
+
+        # wait for the shift to deactivate before continuing
+        # TODO: is this teh correct place for this?
+        # time.sleep(pyautogui.DARWIN_CATCH_UP_TIME)
 
 
 def select_column_index(calib: CalibrationData, col: "int | str") -> None:

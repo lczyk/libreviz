@@ -791,6 +791,11 @@ class ColoredCell:
         self.color = color
         self.cell = cell
 
+    @property
+    def cell_coords(self) -> tuple[int, int]:
+        """Return the coordinates of the cell as a tuple (ci, cj)."""
+        return cell.str2ij(self.cell)
+
     def base(self) -> Color:
         return self.color
 
@@ -805,21 +810,95 @@ class ColoredCell:
 if TYPE_CHECKING:
     _colored_cell: RichColor = ColoredCell.__new__(ColoredCell)
 
-# class ColorPatch:
-#     calib: CalibrationData
 
-#     def __init__(self, calib: CalibrationData) -> None:
-#         # unclear what's the internal implementation of this class
-#         raise NotImplementedError("dont use __init__ directly")
+class ColoredRectangle:
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: Color,
+        c1: cell.CellStr,
+        c2: cell.CellStr,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        self.c1 = c1
+        self.c2 = c2
 
-#     @classmethod
-#     def from_one_coord(
-#         cls,
-#         calib: CalibrationData,
-#         color: Color,
-#     ) -> "ColorPatch":
-#         """Create a ColorPatch from a single color."""
-#         self = cls.__new__(cls)
-#         self.calib = calib
+    def base(self) -> Color:
+        return self.color
 
-#         return self
+    def apply(self) -> None:
+        cell.select_range(self.calib, self.c1, self.c2)
+        self.color.apply()
+
+    def _rich_color(self) -> None:
+        pass
+
+
+if TYPE_CHECKING:
+    _colored_rectangle: RichColor = ColoredRectangle.__new__(ColoredRectangle)
+
+
+def simplify_monochrome_colors(colors: list[ColoredCell]) -> list[RichColor]:
+    """
+    Assume we get a list of RichColor objects which we consider to be monochrome.
+    """
+
+    # convert to a lookup
+    colors_by_ij: dict[ColorIJ, ColoredCell] = {}
+    for color in colors:
+        ij = color.cell_coords
+        if ij in colors_by_ij:
+            print(f"Warning: multiple colors at {ij} in {color.cell}")
+        else:
+            colors_by_ij[ij] = color
+
+    # shuffle
+    colors_by_ij = dict(random.sample(colors_by_ij.items(), len(colors_by_ij)))
+
+    def _ij2ij2(ij: ColorIJ, direction: str) -> ColorIJ:
+        if direction == "up":
+            ij2 = (ij[0], ij[1] - 1)
+        elif direction == "down":
+            ij2 = (ij[0], ij[1] + 1)
+        elif direction == "left":
+            ij2 = (ij[0] - 1, ij[1])
+        elif direction == "right":
+            ij2 = (ij[0] + 1, ij[1])
+        else:
+            raise ValueError(f"Unknown direction: {direction}")
+        return ij2
+
+    simplified_colors: list[RichColor] = []
+    while colors_by_ij:
+        # pick a random color
+        ij, color = colors_by_ij.popitem()
+
+        # attempt to expand it to a rectangle
+        found_direction: str | None = None
+        for direction in ["up", "down", "left", "right"]:
+            ij2 = _ij2ij2(ij, direction)
+
+            if ij2 in colors_by_ij:
+                found_direction = direction
+                break
+
+        if found_direction is None:
+            # no direction in which we can expand this color
+            simplified_colors.append(color)
+            # we already popped this color from the lookup
+            continue
+
+        # we found a direction in which we can expand the color
+        ij2 = _ij2ij2(ij, found_direction)
+        colors_by_ij.pop(ij2, None)  # remove the color in the other direction
+        # now we can create a rectangle
+        rectangle = ColoredRectangle(
+            calib=color.calib,
+            color=color.base(),
+            c1=cell.ij2str(ij),
+            c2=cell.ij2str(ij2),
+        )
+        simplified_colors.append(rectangle)
+
+    return simplified_colors

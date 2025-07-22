@@ -933,7 +933,6 @@ class OneColorTest(_1DBase, _PatternBase):
     def __init__(self, calib: CalibrationData, color: colors.Color) -> None:
         self.calib = calib
         self.color = color
-        self._init_1d_base(calib.n_cols * calib.n_rows)
         self._init_id()
         self.reset()
 
@@ -941,7 +940,7 @@ class OneColorTest(_1DBase, _PatternBase):
         super().reset()
         coords = [(i, j, self.color.rgb()) for i in range(self.calib.n_cols) for j in range(self.calib.n_rows)]
 
-        rich_colors: list[colors.RichColor] = [
+        color_cells: list[colors.ColoredCell] = [
             colors.ColoredCell(
                 self.calib,
                 colors.ArbitraryColor(self.calib, *color_rgb),
@@ -949,7 +948,9 @@ class OneColorTest(_1DBase, _PatternBase):
             )
             for i, j, color_rgb in coords
         ]
-        self.rich_colors = rich_colors
+
+        self.rich_colors = colors.simplify_monochrome_colors(color_cells)
+        self._init_1d_base(len(self.rich_colors))
 
     def step(self) -> PatternStep:
         rich_color = self.rich_colors[self.i]
