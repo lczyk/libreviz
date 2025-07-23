@@ -263,12 +263,13 @@ def run(calib: CalibrationData) -> None:
     # p: list[patterns.Pattern]
 
     # pyautogui.PAUSE = 0.0
-    pyautogui.PAUSE = 0.04
+    pyautogui.PAUSE = 0.03
+    # pyautogui.PAUSE = 0.04
     # pyautogui.PAUSE = 0.2
 
-    _TEMP_ = True  # False for testing
+    _BLOCK_ = True  # Useful for debugging, set to True to run all patterns
 
-    if _TEMP_:
+    if _BLOCK_:
         cc = utils.bounce(colors.filter_colors(colors.GOLDS, avoid_dark=True, avoid_light=True))
         ci = 0
         cj = len(cc) // 2
@@ -281,7 +282,7 @@ def run(calib: CalibrationData) -> None:
             patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, this_c1)).step_all()
             patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, this_c2)).step_all()
 
-    if _TEMP_:
+    if _BLOCK_:
         patterns.Palette2(
             calib,
             fun=lambda x, y: (
@@ -313,7 +314,7 @@ def run(calib: CalibrationData) -> None:
             d_cols=2,
         ).step_all()
 
-    if _TEMP_:
+    if _BLOCK_:
         patterns.DiagonalFill(
             calib,
             colors.StandardCyclerColor(
@@ -337,7 +338,7 @@ def run(calib: CalibrationData) -> None:
             max_expansions=4,
         ).step_all()
 
-    if _TEMP_:
+    if _BLOCK_:
         patterns.Snake(
             calib,
             colors.StandardCyclerColor(
@@ -356,59 +357,51 @@ def run(calib: CalibrationData) -> None:
             which="right",
         ).step_all()
 
-    # temp copy of night
-    _sky: list[colors.ColorName] = [
-        "blue",
-        "dark_blue_1",
-        "dark_blue_2",
-        "dark_blue_3",
-        "dark_indigo_3",
-    ]
+    if _BLOCK_:
+        # temp copy of night
+        _sky: list[colors.ColorName] = [
+            "blue",
+            "dark_blue_1",
+            "dark_blue_2",
+            "dark_blue_3",
+            "dark_indigo_3",
+        ]
 
-    sky = tuple(_sky)
+        sky = tuple(_sky)
 
-    patterns.Snake(
-        calib,
-        colors.StandardCyclerColor(
+        patterns.Snake(
             calib,
-            utils.bounce(sky),
-            offset=random.randint(0, len(sky) - 1),
-        ),
-    ).step_all()
+            colors.StandardCyclerColor(
+                calib,
+                utils.bounce(sky),
+                offset=random.randint(0, len(sky) - 1),
+            ),
+        ).step_all()
 
-    fires_up_night_down(calib)
+        fires_up_night_down(calib)
 
-    draw_logo_final(
-        calib,
-        # square_grid=False,  # for debug speed
-    )
+    if _BLOCK_:
+        draw_logo_final(
+            calib,
+            # square_grid=False,  # for debug speed
+        )
 
     sys.exit()
 
-    palette = None
+    ############################################################################
 
-    while True:
-        for color_group in colors.GROUPS.values():
-            # create a 'bounce' effect by reversing half of the color group
-            color_group_2 = list(color_group)
-            color_group_2.extend(reversed(color_group_2[1:-1]))
+    if _BLOCK_:
+        palette = None
 
-            palette = colors.StandardCyclerColor(
-                calib,
-                color_group_2,
-                offset=palette.current_index if palette else 0,
-                cache=False,
-            )
-            patterns.Boxes(calib, palette).step_all()
-
-    patterns.Palette2(
-        calib,
-        fun=lambda x, y: (
-            int(255 * (1 - x) * (1 - y)),
-            int(255 * x),
-            int(255 * (1 - y)),
-        ),
-    ).step_all()
+        while True:
+            for color_group in colors.GROUPS.values():
+                palette = colors.StandardCyclerColor(
+                    calib,
+                    utils.bounce(color_group),
+                    offset=palette.current_index if palette else 0,
+                    cache=False,
+                )
+                patterns.Boxes(calib, palette).step_all()
 
     patterns.RandomCells(
         calib,
@@ -421,32 +414,15 @@ def run(calib: CalibrationData) -> None:
         outer=colors.StandardColor.from_name(calib, "light_brick_1"),
     ).step_all()
 
-    # c = ["red", "green", "blue", "yellow", "brick", "lime", "teal"]
-
-    # while True:
-    #     next_color_1 = c.pop(0)
-    #     c.append(next_color_1)
-    #     next_color_2 = c.pop(0)
-    #     c.append(next_color_2)
-
-    # for step in patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "dark_lime_1")).all_steps():
-    #     step()
-    #     patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_2)).step_all()
-
-    # Clean up a tiny bit
-    # select_range(calib, "A:1", "D:4")
-    # NoFillColor(calib).apply()
-    # click(*cell_coords(calib, "A:1"))
+    dc: list[tuple[Literal["down", "up", "left", "right"], str]] = [
+        ("down", "light_brick_1"),
+        ("up", "light_lime_1"),
+        ("left", "light_indigo_1"),
+        ("right", "light_gold_1"),
+    ]
+    p = [patterns.Icicles(calib, d, colors.StandardColor.from_name(calib, c)) for d, c in dc]
+    patterns.interweave_patterns(p)
 
 
 if __name__ == "__main__":
     main()
-
-
-# dc: list[tuple[Literal["down", "up", "left", "right"], str]] = [
-#     ("down", "light_brick_1"),
-#     ("up", "light_lime_1"),
-#     ("left", "light_indigo_1"),
-#     ("right", "light_gold_1"),
-# ]
-# p = [patterns.Icicles(calib, d, colors.StandardColor.from_name(calib, c)) for d, c in dc]
