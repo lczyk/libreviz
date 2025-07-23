@@ -283,10 +283,12 @@ class Palette2(_1DBase, _PatternBase):
         fun: PaletteFun | None = None,
         d_rows: int = 4,
         d_cols: int = 2,
+        coerce: bool = True,
     ) -> None:
         self.calib = calib
         self.d_rows = min(d_rows, self.calib.n_rows)
         self.d_cols = min(d_cols, self.calib.n_cols)
+        self.coerce = coerce
         Ni = calib.n_cols // self.d_cols
         Nj = calib.n_rows // self.d_rows
         self.coords: list[tuple[tuple[int, int], tuple[int, int]]] = []
@@ -368,7 +370,7 @@ class Palette2(_1DBase, _PatternBase):
                     cell.ij2str((i1, j1)),
                     cell.ij2str((i2, j2)),
                 )
-                colors.ArbitraryColor(self.calib, *rgb, coerce=True).apply()
+                colors.ArbitraryColor(self.calib, *rgb, coerce=self.coerce).apply()
 
         else:
             # Handle the extra coordinates if any
@@ -732,11 +734,13 @@ class Snake(_1DBase, _PatternBase):
         color: colors.Color,
         width: int = 2,
         segment_size: int = 4,
+        which: Literal["down", "right"] = "down",
     ) -> None:
         self.calib = calib
         self.color = color
         self.segment_size = segment_size
         self.width = width
+        self.which = which
         self._init_id()
         self.reset()
 
@@ -744,44 +748,67 @@ class Snake(_1DBase, _PatternBase):
         super().reset()
 
         self.segments: list[tuple[tuple[int, int], tuple[int, int]]] = []
-        right = True
-        for j in range(0, self.calib.n_rows, self.width):
-            if right:
-                # left to right
-                for i in range(0, self.calib.n_cols, self.segment_size):
-                    i1 = i
-                    i2 = min(i + self.segment_size - 1, self.calib.n_cols - 1)
-                    if i2 < i1:
-                        continue
-                    self.segments.append(
-                        (
+
+        if self.which == "down":
+            right = True
+            for j in range(0, self.calib.n_rows, self.width):
+                if right:
+                    # left to right
+                    for i in range(0, self.calib.n_cols, self.segment_size):
+                        i1 = i
+                        i2 = min(i + self.segment_size - 1, self.calib.n_cols - 1)
+                        if i2 < i1:
+                            continue
+                        self.segments.append(
                             (
-                                i1,
-                                min(j, self.calib.n_rows - 1),
-                            ),
-                            (
-                                i2,
-                                min(j + self.width - 1, self.calib.n_rows - 1),
-                            ),
+                                (i1, min(j, self.calib.n_rows - 1)),
+                                (i2, min(j + self.width - 1, self.calib.n_rows - 1)),
+                            )
                         )
-                    )
-            else:
-                # right to left
-                for i in range(self.calib.n_cols - 1, -1, -self.segment_size):
-                    i1 = max(0, i - self.segment_size + 1)
-                    i2 = i
-                    if i2 < i1:
-                        continue
-                    self.segments.append(
-                        (
+                else:
+                    # right to left
+                    for i in range(self.calib.n_cols - 1, -1, -self.segment_size):
+                        i1 = max(0, i - self.segment_size + 1)
+                        i2 = i
+                        if i2 < i1:
+                            continue
+                        self.segments.append(
                             (
-                                i1,
-                                min(j, self.calib.n_rows - 1),
-                            ),
-                            (i2, min(j + self.width - 1, self.calib.n_rows - 1)),
+                                (i1, min(j, self.calib.n_rows - 1)),
+                                (i2, min(j + self.width - 1, self.calib.n_rows - 1)),
+                            )
                         )
-                    )
-            right = not right
+                right = not right
+        elif self.which == "right":
+            down = True
+            for i in range(0, self.calib.n_cols, self.width):
+                if down:
+                    # top to bottom
+                    for j in range(0, self.calib.n_rows, self.segment_size):
+                        j1 = j
+                        j2 = min(j + self.segment_size - 1, self.calib.n_rows - 1)
+                        if j2 < j1:
+                            continue
+                        self.segments.append(
+                            (
+                                (min(i, self.calib.n_cols - 1), j1),
+                                (min(i + self.width - 1, self.calib.n_cols - 1), j2),
+                            )
+                        )
+                else:
+                    # bottom to top
+                    for j in range(self.calib.n_rows - 1, -1, -self.segment_size):
+                        j1 = max(0, j - self.segment_size + 1)
+                        j2 = j
+                        if j2 < j1:
+                            continue
+                        self.segments.append(
+                            (
+                                (min(i, self.calib.n_cols - 1), j1),
+                                (min(i + self.width - 1, self.calib.n_cols - 1), j2),
+                            )
+                        )
+                down = not down
 
         self._init_1d_base(len(self.segments))
         # print(f"Snake segments: {self.segments}")
@@ -815,13 +842,15 @@ class Image(_1DBase, _PatternBase):
         *,
         mode: Literal["resize", "crop"] = "resize",
         color_distance_tolerance: int = 10,
+        alpha_threshold: int = 10,
     ) -> None:
         self.calib = calib
         self.color_distance_tolerance = color_distance_tolerance
+        self.alpha_threshold = alpha_threshold
 
         # load image using numpy
         img1 = PILImage.open(image)
-        img2 = img1.convert("RGB")  # Ensure the image is in RGB format
+        img2 = img1.convert("RGBA")  # Make sure the image is in RGBA format
 
         if mode == "crop":
             # crop the image to fit the aspect ratio of the number of cells
@@ -867,26 +896,34 @@ class Image(_1DBase, _PatternBase):
         )
 
         # convert the image to a list of RGB tuples
-        self.image_data: list[tuple[int, int, int]] = list(img4.getdata())
+        image_data: list[tuple[int, int, int, int]] = list(img4.getdata())
+        image_data_2 = [
+            (rgba, (i, j))
+            for j in range(calib.n_rows)
+            for i in range(calib.n_cols)
+            for rgba in [image_data[i + j * calib.n_cols]]
+        ]
+
+        # filter out fully transparent pixels
+        self.image_data = [
+            (
+                (i, j),
+                (r, g, b),
+            )
+            for (r, g, b, a), (i, j) in image_data_2
+            if a > self.alpha_threshold  # Only keep pixels with alpha > threshold
+        ]
 
         self._init_id()
-        self._init_1d_base(calib.n_cols * calib.n_rows)
+        self._init_1d_base(len(self.image_data))
         self.reset()
 
     def reset(self) -> None:
         super().reset()
-        coords_and_colors = [
-            (
-                (i, j),
-                self.image_data[i + j * self.calib.n_cols],
-            )
-            for i in range(self.calib.n_cols)
-            for j in range(self.calib.n_rows)
-        ]
 
         # group by color
         grouped_coords = colors.group_by_color(
-            coords_and_colors,
+            self.image_data,
             color_accessor=lambda x: x[1],
             distance_tol=self.color_distance_tolerance,
             # shuffle=True,
@@ -934,30 +971,104 @@ class BoxFill(_1DBase, _PatternBase):
         calib: CalibrationData,
         color: colors.Color,
         artistic: bool = True,
+        max_expansions: int = -1,  # -1 means no limit
     ) -> None:
         self.calib = calib
         self.color = color
         self.artistic = artistic
+        self.max_expansions = max_expansions
         self._init_id()
         self.reset()
 
     def reset(self) -> None:
         super().reset()
-        coords = [(i, j, self.color.rgb()) for i in range(self.calib.n_cols) for j in range(self.calib.n_rows)]
+        coords = [(i, j) for i in range(self.calib.n_cols) for j in range(self.calib.n_rows)]
 
         color_cells: list[colors.ColoredCell] = [
             colors.ColoredCell(
                 self.calib,
-                colors.ArbitraryColor(self.calib, *color_rgb),
+                self.color,
                 cell.ij2str((i, j)),
             )
-            for i, j, color_rgb in coords
+            for i, j in coords
         ]
 
         self.rich_colors = colors.simplify_monochrome_colors(
             color_cells,
             early_stop=self.artistic,
+            max_expansions=self.max_expansions,
         )
+        self._init_1d_base(len(self.rich_colors))
+
+    def step(self) -> PatternStep:
+        rich_color = self.rich_colors[self.i]
+
+        def _step() -> None:
+            rich_color.apply()
+
+        return _step
+
+
+class DiagonalFill(_1DBase, _PatternBase):
+    """Fill the screen diagonally, starting from the top left corner and moving to the bottom right corner."""
+
+    _name_prefix = "diagonal_fill"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: colors.Color,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        self._init_id()
+        self.reset()
+
+    def reset(self) -> None:
+        super().reset()
+        rich_colors: list[colors.RichColor] = []
+
+        i, j = 0, 0  # pointers to one cell
+        ii, jj = 0, 0  # pointer to another cell
+        N_steps = self.calib.n_cols + self.calib.n_rows - 1
+        ij_direction = "right"
+        iijj_direction = "down"
+        # walk i,j right and down, and ii,jj down and right
+        for _ in range(N_steps):
+            # add the segment from (i, j) to (ii, jj)
+            _i, _j = i, j
+            cells = []
+            while _i >= ii or _j <= jj:
+                cells.append(cell.ij2str((_i, _j)))
+                _i -= 1
+                _j += 1
+
+            rich_colors.append(colors.ColoredCloud(self.calib, self.color, cells))
+            # walk
+            if ij_direction == "right":
+                i, j = i + 1, j
+                if i == self.calib.n_cols - 1:
+                    ij_direction = "down"
+            else:
+                i, j = i, j + 1
+
+            if iijj_direction == "down":
+                ii, jj = ii, jj + 1
+                if jj == self.calib.n_rows - 1:
+                    iijj_direction = "right"
+            else:
+                ii, jj = ii + 1, jj
+
+        # for (i1, j1), (i2, j2) in segments:
+        #     ii, jj = i1, j1
+        #     cells = []
+        #     while ii <= i2 and jj <= j2:
+        #         cells.append(cell.ij2str((ii, jj)))
+        #         ii -= 1
+        #         jj += 1
+        #     rich_colors.append(colors.ColoredCloud(self.calib, self.color, cells))
+
+        self.rich_colors = rich_colors
         self._init_1d_base(len(self.rich_colors))
 
     def step(self) -> PatternStep:

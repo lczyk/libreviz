@@ -1,4 +1,4 @@
-from conftest import Subtests
+from conftest import Subtests  # type: ignore[import-not-found]
 
 from src.boxes import cell
 

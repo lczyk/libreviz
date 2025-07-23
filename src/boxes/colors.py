@@ -840,77 +840,46 @@ if TYPE_CHECKING:
     _colored_rectangle: RichColor = ColoredRectangle.__new__(ColoredRectangle)
 
 
-def _ij2other(ij: cell.CellIJ, ij_d1: cell.CellIJ, ij_d2: cell.CellIJ) -> list[cell.CellIJ]:
-    """
-    Given original ij and two directions ij_d1 and ij_d2,
-    return the other points which would for a rectangle, as well as the
-    antagonist point (the one opposite to the original ij).
-    """
+class ColoredCloud:
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: Color,
+        cells: list[cell.CellStr],
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        self.cells = cells
 
-    # sanity check. make sure that ij_d1 and ij_d2 have exactly one
-    # coordinate in common with ij
+    def base(self) -> Color:
+        return self.color
 
-    same_x: cell.CellIJ
-    if ij[0] == ij_d1[0]:
-        same_x = ij_d1
-    elif ij[0] == ij_d2[0]:
-        same_x = ij_d2
-    else:
-        raise ValueError(f"ij {ij} does not share x coordinate with ij_d1 {ij_d1} or ij_d2 {ij_d2}")
+    def apply(self) -> None:
+        # click the first cell in the cloud
+        if not self.cells:
+            return
+        click(*cell.cell_coords(self.calib, self.cells[0]))
+        if len(self.cells) == 1:
+            self.color.apply()
+            return
+        pyautogui.keyDown("command")
+        for cell_str in self.cells[1:]:
+            click(*cell.cell_coords(self.calib, cell_str))
+        pyautogui.keyUp("command")
+        self.color.apply()
 
-    same_y: cell.CellIJ
-    if ij[1] == ij_d1[1]:
-        same_y = ij_d1
-    elif ij[1] == ij_d2[1]:
-        same_y = ij_d2
-    else:
-        raise ValueError(f"ij {ij} does not share y coordinate with ij_d1 {ij_d1} or ij_d2 {ij_d2}")
+    def _rich_color(self) -> None:
+        pass
 
-    Dx = same_y[0] - ij[0]
-    Dy = same_x[1] - ij[1]
 
-    assert Dx != 0
-    assert Dy != 0
-
-    other: list[cell.CellIJ] = []
-
-    dx_range = range(0, Dx + 1, 1) if Dx > 0 else range(0, Dx - 1, -1)
-    dy_range = range(0, Dy + 1, 1) if Dy > 0 else range(0, Dy - 1, -1)
-    for dx in dx_range:
-        for dy in dy_range:
-            # NOTE: we don't want the original ij,
-            # and we don't want the axes, hence the 'or'
-            if dx == 0 or dy == 0:
-                continue
-
-            other.append(
-                (
-                    ij[0] + dx,
-                    ij[1] + dy,
-                )
-            )
-
-    # filter out only the points in the direction perpendicular to d1
-    if same_x == ij_d1:  # noqa: SIM108
-        # d1 is vertical, so we want horizontal points
-        other = [o for o in other if o[1] == ij_d1[1]]
-    else:  # same_y == ij_d1:
-        other = [o for o in other if o[0] == ij_d1[0]]
-
-    # temp sanity check.
-    # we should not be calling this to get no cells back
-    assert other
-
-    antagonist = (same_y[0], same_x[1])  # swap the coordinates
-
-    assert other[-1] == antagonist, f"Expected antagonist {antagonist} but got {other[-1]}"
-
-    return other
+if TYPE_CHECKING:
+    _colored_cloud: RichColor = ColoredCloud.__new__(ColoredCloud)
 
 
 def simplify_monochrome_colors(
     colors: list[ColoredCell],
     early_stop: bool = False,  # can be used for aesthetic reasons
+    max_expansions: int = -1,  # can be used to limit the number of expansions
 ) -> list[RichColor]:
     """
     Assume we get a list of RichColor objects which we consider to be monochrome.
@@ -993,12 +962,20 @@ def simplify_monochrome_colors(
                     break
 
         if second_direction is None:
+            # we can only expand in the first direction
+
+            n_expansions = 1  # already expanded once
             while True:
                 ij_d1 = _ij2ij2(ij_d1, first_direction)
                 if ij_d1 not in colors_by_ij:
                     break
                 colors_by_ij.pop(ij_d1, None)  # remove the color in the other direction
                 rectangle.c2 = cell.ij2str(ij_d1)  # expand the rectangle
+
+                n_expansions += 1
+                if max_expansions > 0 and n_expansions >= max_expansions:
+                    # if we reached the maximum number of expansions, stop
+                    break
 
         else:
             # we can definitely expand in the second direction once
@@ -1008,7 +985,13 @@ def simplify_monochrome_colors(
             colors_by_ij.pop(ij_d1_d2, None)
             rectangle.c2 = cell.ij2str(ij_d1_d2)
 
+            if max_expansions > 0 and max_expansions <= 1:
+                # expanded once in each direction
+                simplified_colors.append(rectangle)
+                continue
+
             # try to expand in the first direction as much as possible
+            n_first_expansions = 1  # already expanded once
             while True:
                 _ij_d1 = _ij2ij2(ij_d1, first_direction)
                 if _ij_d1 not in colors_by_ij:
@@ -1022,9 +1005,14 @@ def simplify_monochrome_colors(
                 colors_by_ij.pop(ij_d1_d2, None)
                 rectangle.c2 = cell.ij2str(ij_d1_d2)
 
+                n_first_expansions += 1
+                if max_expansions > 0 and n_first_expansions >= max_expansions:
+                    break
+
             # try to expand in the second direction
             # NOTE: now we actually need to keep track of cells other than
             # the extra ij_d1_d2
+            n_second_expansions = 1
             while True:
                 _ij_d2 = _ij2ij2(ij_d2, second_direction)
                 if _ij_d2 not in colors_by_ij:
@@ -1059,6 +1047,11 @@ def simplify_monochrome_colors(
                     colors_by_ij.pop(_ij, None)
                 rectangle.c2 = cell.ij2str(ij_d1_d2)
 
+                n_second_expansions += 1
+                if max_expansions > 0 and n_second_expansions >= max_expansions:
+                    # if we reached the maximum number of expansions, stop
+                    break
+
             if early_stop:
                 # if we want to stop early, we can just skip the expansion
                 # in the opposite direction
@@ -1079,7 +1072,7 @@ def simplify_monochrome_colors(
             # initialize the points used for the expansion
             ij_d3 = ij
             ij_d2_d3 = ij_d2
-
+            n_third_expansions = 0  # did not expand yet in this direction
             while True:
                 _ij_d3 = _ij2ij2(ij_d3, first_direction_opposite)
                 if _ij_d3 not in colors_by_ij:
@@ -1112,6 +1105,9 @@ def simplify_monochrome_colors(
                     colors_by_ij.pop(_ij, None)
                 rectangle.c1 = cell.ij2str(ij_d3)
 
+                if max_expansions > 0 and n_third_expansions >= max_expansions:
+                    break
+
             # finally expand in the direction opposite to the second direction
             second_direction_opposite: str
             if second_direction == "up":
@@ -1123,6 +1119,7 @@ def simplify_monochrome_colors(
             else:  # second_direction == "right":
                 second_direction_opposite = "left"
 
+            n_fourth_expansions = 0
             while True:
                 _ij_d3 = _ij2ij2(ij_d3, second_direction_opposite)
                 if _ij_d3 not in colors_by_ij:
@@ -1155,7 +1152,31 @@ def simplify_monochrome_colors(
                     colors_by_ij.pop(_ij, None)
                 rectangle.c1 = cell.ij2str(ij_d3)
 
+                n_fourth_expansions += 1
+                if max_expansions > 0 and n_fourth_expansions >= max_expansions:
+                    # if we reached the maximum number of expansions, stop
+                    break
+
         # add the rectangle to the list of simplified colors
         simplified_colors.append(rectangle)
 
     return simplified_colors
+
+
+# _T_Sequence = TypeVar("_T_Sequence", bound=Sequence)
+
+
+def filter_colors(
+    colors: tuple[ColorName, ...],
+    *,
+    avoid_dark: bool = True,  # avoid dark 3 and 4
+    avoid_light: bool = True,  # avoid light 4
+) -> tuple[ColorName, ...]:
+    return tuple(
+        [
+            color
+            for color in colors
+            if not (avoid_dark and color.startswith("dark_") and (color.endswith("_4") or color.endswith("_3")))
+            and not (avoid_light and color.startswith("light_") and color.endswith("_4"))
+        ]
+    )

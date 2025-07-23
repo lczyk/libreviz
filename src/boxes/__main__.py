@@ -1,9 +1,9 @@
 import json
+import math
 import os
 import random
 import sys
 import time
-from collections import deque
 from dataclasses import replace
 from typing import Literal
 
@@ -174,76 +174,216 @@ def change_to_square_grid(calib: CalibrationData) -> CalibrationData:
     return calib2
 
 
+def grays_fill(calib: CalibrationData) -> None:
+    grays: tuple[colors.ColorName, ...] = (
+        "dark_gray_1",
+        "gray",
+        "light_gray_1",
+        "light_gray_2",
+    )
+
+    # patterns.BoxFill(
+    #     calib,
+    #     colors.StandardCyclerColor(calib, grays),
+    #     artistic=True,
+    # ).step_all()
+    patterns.Snake(
+        calib,
+        colors.StandardCyclerColor(calib, grays),
+        width=calib.n_rows // 10,
+        segment_size=calib.n_cols,
+    ).step_all()
+
+
+def draw_logo_final(
+    calib: CalibrationData,
+    square_grid: bool = True,
+) -> None:
+    """Draw the final logo on the grid."""
+
+    if square_grid:
+        calib = change_to_square_grid(calib)
+
+    grays_fill(calib=calib)
+
+    palette = [
+        # "dark_brick_2",
+        "dark_brick_1",
+        "brick",
+        "light_brick_1",
+        "light_brick_1",
+        "light_brick_2",
+        "dark_orange_1",
+        "orange",
+    ]
+
+    # patterns.BoxFill(
+    #     calib,
+    #     # colors.StandardColor.from_name(calib, "white"),
+    #     # colors.StandardColor.from_name(calib, "gray"),
+    #     colors.StandardCyclerColor(
+    #         calib,
+    #         utils.bounce(oranges),
+    #     ),
+    #     artistic=True,
+    # ).step_all()
+    p: list[patterns.Pattern] = []
+    which: Literal["row", "column"] = "row"
+    for color in palette:
+        p.append(
+            patterns.Lights(
+                calib,
+                which=which,
+                color=colors.StandardColor.from_name(calib, color),
+            )
+        )
+        which = "column" if which == "row" else "row"
+
+    patterns.interweave_patterns(p)
+
+    patterns.Image(
+        calib,
+        image=__project_root__ / "img" / "canonical_alpha.png",
+        mode="resize",
+        color_distance_tolerance=40,
+        alpha_threshold=30,
+    ).step_all()
+
+
 def run(calib: CalibrationData) -> None:
     colors.reset_all_colors(calib)
     text.reset_all_cell_contents(calib)
     time.sleep(0.1)
 
-    p: list[patterns.Pattern]
+    cell_area_width = calib.n_cols * calib.cell_width
+    cell_area_height = calib.n_rows * calib.cell_height
+    aspect_ratio = cell_area_width / cell_area_height
+    print(f"Aspect ratio: {aspect_ratio:.2f}")
+
+    # p: list[patterns.Pattern]
 
     # pyautogui.PAUSE = 0.0
-    pyautogui.PAUSE = 0.03
+    pyautogui.PAUSE = 0.04
     # pyautogui.PAUSE = 0.2
 
-    calib = change_to_square_grid(calib)
+    _TEMP_ = True  # False for testing
 
-    patterns.BoxFill(
-        calib,
-        colors.StandardColor.from_name(calib, "light_lime_3"),
-    ).step_all()
+    if _TEMP_:
+        cc = utils.bounce(colors.filter_colors(colors.GOLDS, avoid_dark=True, avoid_light=True))
+        ci = 0
+        cj = len(cc) // 2
+        for _ in range(len(cc)):
+            this_c1 = cc[ci]
+            ci = (ci + 1) % len(cc)
+            this_c2 = cc[cj]
+            cj = (cj + 1) % len(cc)
 
-    # patterns.PaletteTest1(calib).step_all()
+            patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, this_c1)).step_all()
+            patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, this_c2)).step_all()
 
-    patterns.Image(
-        calib,
-        image=__project_root__ / "img" / "logo.png",
-        mode="crop",
-        color_distance_tolerance=100,
-    ).step_all()
+    if _TEMP_:
+        patterns.Palette2(
+            calib,
+            fun=lambda x, y: (
+                int(255 * x),
+                int(255 * y),
+                int(255 * (1 - x) * (1 - y)),
+            ),
+            d_rows=4,
+            d_cols=2,
+        ).step_all()
 
-    sys.exit()
+        patterns.Palette2(
+            calib,
+            fun=lambda x, y: (
+                int(255 * (1 - x) * (1 - y)),
+                int(255 * x),
+                int(255 * (1 - y)),
+            ),
+        ).step_all()
 
-    while True:
-        fires_up_night_down(calib)
+        patterns.Palette2(
+            calib,
+            fun=lambda x, y: (
+                int(math.sin(x * math.pi) * 127 + 128),
+                int(math.sin(y * math.pi) * 127 + 128),
+                int(math.sin((x + y) * math.pi) * 127 + 128),
+            ),
+            d_rows=4,
+            d_cols=2,
+        ).step_all()
 
-    sys.exit()
+    if _TEMP_:
+        patterns.DiagonalFill(
+            calib,
+            colors.StandardCyclerColor(
+                calib,
+                colors.filter_colors(colors.BLUES, avoid_dark=True, avoid_light=True),
+            ),
+        ).step_all()
 
-    c = list(colors.TEALS) + list(colors.LIMES)
-    random.shuffle(c)
-    patterns.DenseSpiral(
-        calib,
-        colors.StandardCyclerColor(calib, c),
-    ).step_all()
+        patterns.BoxFill(
+            calib,
+            colors.StandardCyclerColor(
+                calib,
+                utils.bounce(colors.filter_colors(colors.YELLOWS, avoid_dark=True, avoid_light=True)),
+            ),
+            max_expansions=5,
+        ).step_all()
 
-    dc: list[tuple[Literal["down", "up", "left", "right"], str]] = [
-        ("down", "light_brick_1"),
-        ("up", "light_lime_1"),
-        ("left", "light_indigo_1"),
-        ("right", "light_gold_1"),
+        patterns.BoxFill(
+            calib,
+            colors.StandardCyclerColor(calib, utils.bounce(colors.INDIGOS)),
+            max_expansions=4,
+        ).step_all()
+
+    if _TEMP_:
+        patterns.Snake(
+            calib,
+            colors.StandardCyclerColor(
+                calib, utils.bounce(colors.filter_colors(colors.PURPLES, avoid_dark=True, avoid_light=True))
+            ),
+            width=3,
+            segment_size=3,
+            which="down",
+        ).step_all()
+
+        patterns.Snake(
+            calib,
+            colors.StandardCyclerColor(calib, utils.bounce(colors.MAGENTAS)),
+            width=1,
+            segment_size=5,
+            which="right",
+        ).step_all()
+
+    # temp copy of night
+    _sky: list[colors.ColorName] = [
+        "blue",
+        "dark_blue_1",
+        "dark_blue_2",
+        "dark_blue_3",
+        "dark_indigo_3",
     ]
-    p = [patterns.Icicles(calib, d, colors.StandardColor.from_name(calib, c)) for d, c in dc]
 
-    patterns.interweave_patterns(p)
+    sky = tuple(_sky)
+
+    patterns.Snake(
+        calib,
+        colors.StandardCyclerColor(
+            calib,
+            utils.bounce(sky),
+            offset=random.randint(0, len(sky) - 1),
+        ),
+    ).step_all()
+
+    fires_up_night_down(calib)
+
+    draw_logo_final(
+        calib,
+        # square_grid=False,  # for debug speed
+    )
 
     sys.exit()
-
-    c1 = deque(colors.TEALS)
-    c2 = deque(colors.REDS)
-
-    while True:
-        this_c1 = c1.popleft()
-        c1.append(this_c1)
-        this_c2 = c2.popleft()
-        c2.append(this_c2)
-
-        p = [
-            # patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, "light_red_1")),
-            # patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, "light_blue_1")),
-            patterns.Lights(calib, "column", colors.StandardColor.from_name(calib, this_c2)),
-            patterns.Lights(calib, "row", colors.StandardColor.from_name(calib, this_c1)),
-        ]
-
-        patterns.interweave_patterns(p)
 
     palette = None
 
@@ -293,35 +433,6 @@ def run(calib: CalibrationData) -> None:
     #     step()
     #     patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, next_color_2)).step_all()
 
-    # patterns.PaletteTest1(calib).step_all()
-    # patterns.PaletteTest2(calib).step_all()
-    # pattern_cells(calib, RandomChangingColor(calib), sleep_time=0.0)
-    # pattern_cells(
-    #     calib,
-    #     # colors.RadialColor(
-    #     #     calib,
-    #     #     center=(255, 0, 0),  # red
-    #     #     edge=(128, 128, 128),  # gray
-    #     #     radius=1.5,
-    #     # ),
-    #     # colors.RandomChangingColor(calib),
-    #     colors.StandardColor.from_name(calib, "lime"),
-    #     sleep_time=0.0,
-    # )
-
-    # Test pattern
-    # pattern_palette_test_1(calib)
-    # patterns.palette_test_2(calib)
-
-    # column_lights(calib, random_color(calib))
-    # reset_all_colors(calib)
-    # row_lights(calib, random_color(calib))
-    # reset_all_colors(calib)
-
-    # while True:
-    #     column_row_lights(calib, random_color(calib), random_color(calib), sleep_time=0)
-    #     # reset_all_colors(calib)
-
     # Clean up a tiny bit
     # select_range(calib, "A:1", "D:4")
     # NoFillColor(calib).apply()
@@ -330,3 +441,12 @@ def run(calib: CalibrationData) -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# dc: list[tuple[Literal["down", "up", "left", "right"], str]] = [
+#     ("down", "light_brick_1"),
+#     ("up", "light_lime_1"),
+#     ("left", "light_indigo_1"),
+#     ("right", "light_gold_1"),
+# ]
+# p = [patterns.Icicles(calib, d, colors.StandardColor.from_name(calib, c)) for d, c in dc]

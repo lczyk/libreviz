@@ -397,3 +397,6 @@ def reset(
 
     # press delete to clear the cells
     pyautogui.press("delete")
+
+    # click on A1 cell
+    click(*top_left_cell)
