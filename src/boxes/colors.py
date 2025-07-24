@@ -38,6 +38,7 @@ class Color(Protocol):
 
 class RichColor(Protocol):
     # Rich colors are colors which know *where* to apply themselves
+    @property
     def base(self) -> Color: ...
     def apply(self) -> None: ...
     def _rich_color(self) -> None: ...  # marker method
@@ -797,6 +798,7 @@ class ColoredCell:
         """Return the coordinates of the cell as a tuple (ci, cj)."""
         return cell.str2ij(self.cell)
 
+    @property
     def base(self) -> Color:
         return self.color
 
@@ -825,6 +827,7 @@ class ColoredRectangle:
         self.c1 = c1
         self.c2 = c2
 
+    @property
     def base(self) -> Color:
         return self.color
 
@@ -851,6 +854,7 @@ class ColoredCloud:
         self.color = color
         self.cells = cells
 
+    @property
     def base(self) -> Color:
         return self.color
 
@@ -939,7 +943,7 @@ def simplify_monochrome_colors(
         # now we can create a rectangle
         rectangle = ColoredRectangle(
             calib=color.calib,
-            color=color.base(),
+            color=color.base,
             c1=cell.ij2str(ij),
             c2=cell.ij2str(ij_d1),
         )

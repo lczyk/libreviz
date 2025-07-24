@@ -250,6 +250,38 @@ def draw_logo_final(
     ).step_all()
 
 
+def gliders_final(calib: CalibrationData) -> None:
+    def _draw_glider(x: int, y: int) -> list[tuple[int, int]]:
+        """Draw a glider pattern starting at (x, y) in the grid."""
+        return [
+            (x, y),
+            (x + 1, y),
+            (x + 2, y),
+            (x + 2, y - 1),
+            (x + 1, y - 2),
+        ]
+
+    init_state: list[tuple[int, int]] = []
+
+    i0, j0 = 1, 6
+    v1 = (+1, +7)
+    v2 = (+6, +1)
+    for d1 in range(3):
+        for d2 in range(3):
+            dv = (v1[0] * d1 + v2[0] * d2, v1[1] * d1 + v2[1] * d2)
+            i, j = i0 + dv[0], j0 + dv[1]
+            init_state.extend(_draw_glider(i, j))
+
+    patterns.GameOfLife(
+        calib,
+        dead=colors.StandardColor.from_name(calib, "dark_gray_1"),
+        alive=colors.StandardColor.from_name(calib, "lime"),
+        N=100,
+        frame_sleep=1.0,  # Sleep time between frames
+        init_state=init_state,
+    ).step_all()
+
+
 def run(calib: CalibrationData) -> None:
     colors.reset_all_colors(calib)
     text.reset_all_cell_contents(calib)
@@ -263,11 +295,33 @@ def run(calib: CalibrationData) -> None:
     # p: list[patterns.Pattern]
 
     # pyautogui.PAUSE = 0.0
-    pyautogui.PAUSE = 0.03
-    # pyautogui.PAUSE = 0.04
+    # pyautogui.PAUSE = 0.03
+    pyautogui.PAUSE = 0.04
     # pyautogui.PAUSE = 0.2
 
     _BLOCK_ = True  # Useful for debugging, set to True to run all patterns
+
+    # draw a glider pattern
+
+    gliders_final(calib)
+
+    sys.exit()
+
+    while True:
+        patterns.BoxFill(
+            calib,
+            colors.StandardCyclerColor(
+                calib,
+                utils.bounce(colors.filter_colors(colors.YELLOWS, avoid_dark=True, avoid_light=True)),
+            ),
+            max_expansions=random.randint(2, 5),
+        ).step_all()
+
+        patterns.BoxFill(
+            calib,
+            colors.StandardCyclerColor(calib, utils.bounce(colors.INDIGOS)),
+            max_expansions=random.randint(2, 5),
+        ).step_all()
 
     if _BLOCK_:
         cc = utils.bounce(colors.filter_colors(colors.GOLDS, avoid_dark=True, avoid_light=True))
@@ -321,21 +375,6 @@ def run(calib: CalibrationData) -> None:
                 calib,
                 colors.filter_colors(colors.BLUES, avoid_dark=True, avoid_light=True),
             ),
-        ).step_all()
-
-        patterns.BoxFill(
-            calib,
-            colors.StandardCyclerColor(
-                calib,
-                utils.bounce(colors.filter_colors(colors.YELLOWS, avoid_dark=True, avoid_light=True)),
-            ),
-            max_expansions=5,
-        ).step_all()
-
-        patterns.BoxFill(
-            calib,
-            colors.StandardCyclerColor(calib, utils.bounce(colors.INDIGOS)),
-            max_expansions=4,
         ).step_all()
 
     if _BLOCK_:

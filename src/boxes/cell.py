@@ -218,3 +218,16 @@ def change_cell_dimensions(
     #     pyautogui.press("delete")
     # pyautogui.write(str(cell_width))
     # pyautogui.press("enter")
+
+
+def select_cloud(calib: CalibrationData, cloud: list[CellStr]) -> None:
+    """Select a cloud of cells."""
+    if not cloud:
+        return
+    # click the first cell
+    click(*cell_coords(calib, cloud[0]))
+    # select the rest of the cells
+    pyautogui.keyDown("command")
+    for c in cloud[1:]:
+        click(*cell_coords(calib, c))
+    pyautogui.keyUp("command")

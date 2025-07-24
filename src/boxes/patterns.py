@@ -1,5 +1,6 @@
 import math
 import random
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Literal, Protocol, no_type_check
 
@@ -1076,6 +1077,140 @@ class DiagonalFill(_1DBase, _PatternBase):
 
         def _step() -> None:
             rich_color.apply()
+
+        return _step
+
+
+if TYPE_CHECKING:
+    _diagonal_fill: Pattern = DiagonalFill.__new__(DiagonalFill)
+
+
+class GameOfLife(_1DBase, _PatternBase):
+    """A simple implementation of Conway's Game of Life on the screen."""
+
+    _name_prefix = "game_of_life"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        dead: colors.Color,
+        alive: colors.Color,
+        *,
+        N: int = 10,
+        frame_sleep: float = 0.1,
+        init_state: list[tuple[int, int]] | float | None = None,  # Initial live cells
+    ) -> None:
+        self.calib = calib
+        self.dead = dead
+        self.alive = alive
+        self.N = N
+        self.frame_sleep = frame_sleep
+        self.init_state = init_state
+        self._init_id()
+        self.reset()
+
+    def reset(self) -> None:
+        if self.init_state is None:
+            # Randomly initialize the grid with live cells
+            grid = [[random.choice([0, 1]) for _ in range(self.calib.n_cols)] for _ in range(self.calib.n_rows)]
+        elif isinstance(self.init_state, float):
+            # Initialize the grid with a random pattern based on the given float
+            grid = [
+                [1 if random.random() < self.init_state else 0 for _ in range(self.calib.n_cols)]
+                for _ in range(self.calib.n_rows)
+            ]
+        else:  # Initialize the grid with the provided live cells
+            # Initialize the grid with the provided live cells
+            grid = [[0 for _ in range(self.calib.n_cols)] for _ in range(self.calib.n_rows)]
+            for i, j in self.init_state:
+                if 0 <= i < self.calib.n_cols and 0 <= j < self.calib.n_rows:
+                    grid[j][i] = 1
+
+        self.boards = [grid]
+        # simulate all the steps of the Game of Life
+        for _ in range(self.N - 1):
+            new_board = self._next_board(self.boards[-1])
+            self.boards.append(new_board)
+
+        self._init_1d_base(len(self.boards))
+
+    @staticmethod
+    def _next_board(board: list[list[int]]) -> list[list[int]]:
+        """Compute the next board state based on the current board."""
+        N_rows = len(board)
+        N_cols = len(board[0])
+        new_board = [[0 for _ in range(N_cols)] for _ in range(N_rows)]
+        for i in range(N_rows):
+            for j in range(N_cols):
+                # Count alive neighbors
+                alive_neighbors = sum(
+                    board[(i + di) % N_rows][(j + dj) % N_cols]
+                    for di in (-1, 0, 1)
+                    for dj in (-1, 0, 1)
+                    if (di != 0 or dj != 0)
+                )
+                if board[i][j] == 1:
+                    # Cell is alive
+                    if alive_neighbors < 2 or alive_neighbors > 3:
+                        new_board[i][j] = 0
+                    else:
+                        new_board[i][j] = 1
+                else:
+                    # Cell is dead
+                    if alive_neighbors == 3:
+                        new_board[i][j] = 1
+                    else:
+                        new_board[i][j] = 0
+        return new_board
+
+    def step(self) -> PatternStep:
+        board = self.boards[self.i]
+        if self.i == 0:
+            # Draw all cells as dead over the whole screen
+            # then draw the first board
+            def _step() -> None:
+                cell.select_range(
+                    self.calib,
+                    cell.ij2str((0, 0)),
+                    cell.ij2str((self.calib.n_cols - 1, self.calib.n_rows - 1)),
+                )
+                self.dead.apply()
+                colors.ColoredCloud(
+                    self.calib,
+                    self.alive,
+                    [
+                        cell.ij2str((i, j))
+                        for i in range(self.calib.n_cols)
+                        for j in range(self.calib.n_rows)
+                        if board[j][i] == 1
+                    ],
+                ).apply()
+        else:
+            prev_board = self.boards[self.i - 1]
+
+            # Draw the next board
+            def _step() -> None:
+                # select all cells which were alive in the previous step but are now dead
+                alive_before_and_dead_now = [
+                    (i, j)
+                    for i in range(self.calib.n_cols)
+                    for j in range(self.calib.n_rows)
+                    if prev_board[j][i] == 1 and board[j][i] == 0
+                ]
+                if alive_before_and_dead_now:
+                    cell.select_cloud(self.calib, [cell.ij2str((i, j)) for i, j in alive_before_and_dead_now])
+                    self.dead.apply()
+                # select all cells which were dead in the previous step but are now alive
+                dead_before_and_alive_now = [
+                    (i, j)
+                    for i in range(self.calib.n_cols)
+                    for j in range(self.calib.n_rows)
+                    if prev_board[j][i] == 0 and board[j][i] == 1
+                ]
+                if dead_before_and_alive_now:
+                    cell.select_cloud(self.calib, [cell.ij2str((i, j)) for i, j in dead_before_and_alive_now])
+                    self.alive.apply()
+                time.sleep(max(0, self.frame_sleep))
 
         return _step
 
