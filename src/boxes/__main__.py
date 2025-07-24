@@ -251,32 +251,41 @@ def draw_logo_final(
 
 
 def gliders_final(calib: CalibrationData) -> None:
-    def _draw_glider(x: int, y: int) -> list[tuple[int, int]]:
-        """Draw a glider pattern starting at (x, y) in the grid."""
-        return [
-            (x, y),
-            (x + 1, y),
-            (x + 2, y),
-            (x + 2, y - 1),
-            (x + 1, y - 2),
-        ]
+    calib = change_to_square_grid(calib)
 
-    init_state: list[tuple[int, int]] = []
+    # draw a glider gun
+    # fmt: off
+    cell_coords = [
+        ### square on the left
+        (1, 5), (1, 6), (2, 5), (2, 6),
+        ### big blob facing left
+        (11, 5), (11, 6), (11, 7),
+        (12, 4), (12, 8),
+        (13, 3), (13, 9),
+        (14, 3), (14, 9),
+        (15, 6),
+        (16, 4), (16, 8),
+        (17, 5), (17, 6), (17, 7),
+        (18, 6),
+        ### square ship thingy
+        (21, 3), (21, 4), (21, 5),
+        (22, 3), (22, 4), (22, 5),
+        (23, 2), (23, 6),
+        (25, 1), (25, 2), (25, 6), (25, 7),
+        ### square on the right
+        (35, 3), (35, 4),
+        (36, 3), (36, 4),
+    ]
+    # fmt: on
 
-    i0, j0 = 1, 6
-    v1 = (+1, +7)
-    v2 = (+6, +1)
-    for d1 in range(3):
-        for d2 in range(3):
-            dv = (v1[0] * d1 + v2[0] * d2, v1[1] * d1 + v2[1] * d2)
-            i, j = i0 + dv[0], j0 + dv[1]
-            init_state.extend(_draw_glider(i, j))
+    i, j = 1, 1  # origin
+    init_state: list[tuple[int, int]] = [(i + x, j + y) for x, y in cell_coords]
 
     patterns.GameOfLife(
         calib,
         dead=colors.StandardColor.from_name(calib, "dark_gray_1"),
         alive=colors.StandardColor.from_name(calib, "lime"),
-        N=100,
+        N=300_000,
         frame_sleep=1.0,  # Sleep time between frames
         init_state=init_state,
     ).step_all()

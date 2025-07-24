@@ -61,6 +61,13 @@ class _PatternBase:
         return steps
 
     @no_type_check
+    def iter_steps(self) -> PatternStep:
+        """Return an iterator over the steps of the pattern."""
+        for _ in range(self.n_steps):
+            yield self.step()
+            self.advance()
+
+    @no_type_check
     def __len__(self) -> int:
         """Return the number of steps in the pattern."""
         return self.n_steps
@@ -68,7 +75,7 @@ class _PatternBase:
     @no_type_check
     def step_all(self) -> None:
         """Perform all steps of the pattern."""
-        for step in self.all_steps():
+        for step in self.iter_steps():
             step()
 
     @property
@@ -1126,13 +1133,14 @@ class GameOfLife(_1DBase, _PatternBase):
                 if 0 <= i < self.calib.n_cols and 0 <= j < self.calib.n_rows:
                     grid[j][i] = 1
 
-        self.boards = [grid]
-        # simulate all the steps of the Game of Life
-        for _ in range(self.N - 1):
-            new_board = self._next_board(self.boards[-1])
-            self.boards.append(new_board)
+        self.board = grid
+        # self.boards = [grid]
+        # # simulate all the steps of the Game of Life
+        # for _ in range(self.N - 1):
+        #     new_board = self._next_board(self.boards[-1])
+        #     self.boards.append(new_board)
 
-        self._init_1d_base(len(self.boards))
+        self._init_1d_base(self.N)
 
     @staticmethod
     def _next_board(board: list[list[int]]) -> list[list[int]]:
@@ -1164,8 +1172,9 @@ class GameOfLife(_1DBase, _PatternBase):
         return new_board
 
     def step(self) -> PatternStep:
-        board = self.boards[self.i]
         if self.i == 0:
+            board = self.board
+
             # Draw all cells as dead over the whole screen
             # then draw the first board
             def _step() -> None:
@@ -1186,7 +1195,8 @@ class GameOfLife(_1DBase, _PatternBase):
                     ],
                 ).apply()
         else:
-            prev_board = self.boards[self.i - 1]
+            prev_board = self.board
+            board = self._next_board(prev_board)
 
             # Draw the next board
             def _step() -> None:
@@ -1211,6 +1221,8 @@ class GameOfLife(_1DBase, _PatternBase):
                     cell.select_cloud(self.calib, [cell.ij2str((i, j)) for i, j in dead_before_and_alive_now])
                     self.alive.apply()
                 time.sleep(max(0, self.frame_sleep))
+
+        self.board = board  # Update the board for the next step
 
         return _step
 
