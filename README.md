@@ -12,7 +12,7 @@ source .venv/bin/activate
 run:
 
 ```
-python src/boxes
+python -m src.boxes
 ```
 
 ## dev
