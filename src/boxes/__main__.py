@@ -310,27 +310,27 @@ def run(calib: CalibrationData) -> None:
 
     _BLOCK_ = True  # Useful for debugging, set to True to run all patterns
 
-    # draw a glider pattern
+    # gliders_final(calib)
 
-    gliders_final(calib)
-
-    sys.exit()
-
+    palette = colors.GOLDS
     while True:
-        patterns.BoxFill(
-            calib,
-            colors.StandardCyclerColor(
-                calib,
-                utils.bounce(colors.filter_colors(colors.YELLOWS, avoid_dark=True, avoid_light=True)),
-            ),
-            max_expansions=random.randint(2, 5),
-        ).step_all()
+        cc = utils.bounce(colors.filter_colors(palette, avoid_dark=True, avoid_light=True))
+        ci = 0
+        cj = len(cc) // 2
+        for _ in range(len(cc)):
+            this_c1 = cc[ci]
+            ci = (ci + 1) % len(cc)
+            this_c2 = cc[cj]
+            cj = (cj + 1) % len(cc)
 
-        patterns.BoxFill(
-            calib,
-            colors.StandardCyclerColor(calib, utils.bounce(colors.INDIGOS)),
-            max_expansions=random.randint(2, 5),
-        ).step_all()
+            patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, this_c1)).step_all()
+            patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, this_c2)).step_all()
+
+        # randomize the palette after each full cycle
+        new_palette = None
+        while new_palette is None or new_palette == palette:
+            new_palette = colors.GROUPS[random.choice(list(colors.GROUPS.keys()))]
+        palette = new_palette
 
     if _BLOCK_:
         cc = utils.bounce(colors.filter_colors(colors.GOLDS, avoid_dark=True, avoid_light=True))
