@@ -243,7 +243,7 @@ def draw_logo_final(
 
     patterns.Image(
         calib,
-        image=__project_root__ / "img" / "canonical_alpha.png",
+        image=__project_root__ / "img" / "hivemind_inverted_white.png",
         mode="resize",
         color_distance_tolerance=40,
         alpha_threshold=30,
