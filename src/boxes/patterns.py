@@ -742,7 +742,7 @@ class Snake(_1DBase, _PatternBase):
         color: colors.Color,
         width: int = 2,
         segment_size: int = 4,
-        which: Literal["down", "right"] = "down",
+        which: Literal["down", "right", "up", "left"] = "down",
     ) -> None:
         self.calib = calib
         self.color = color
@@ -757,9 +757,44 @@ class Snake(_1DBase, _PatternBase):
 
         self.segments: list[tuple[tuple[int, int], tuple[int, int]]] = []
 
-        if self.which == "down":
+        # if self.which == "down":
+        #     right = True
+        #     for j in range(0, self.calib.n_rows, self.width):
+        #         if right:
+        #             # left to right
+        #             for i in range(0, self.calib.n_cols, self.segment_size):
+        #                 i1 = i
+        #                 i2 = min(i + self.segment_size - 1, self.calib.n_cols - 1)
+        #                 if i2 < i1:
+        #                     continue
+        #                 self.segments.append(
+        #                     (
+        #                         (i1, min(j, self.calib.n_rows - 1)),
+        #                         (i2, min(j + self.width - 1, self.calib.n_rows - 1)),
+        #                     )
+        #                 )
+        #         else:
+        #             # right to left
+        #             for i in range(self.calib.n_cols - 1, -1, -self.segment_size):
+        #                 i1 = max(0, i - self.segment_size + 1)
+        #                 i2 = i
+        #                 if i2 < i1:
+        #                     continue
+        #                 self.segments.append(
+        #                     (
+        #                         (i1, min(j, self.calib.n_rows - 1)),
+        #                         (i2, min(j + self.width - 1, self.calib.n_rows - 1)),
+        #                     )
+        #                 )
+        #         right = not right
+        if self.which in ("down", "up"):
             right = True
-            for j in range(0, self.calib.n_rows, self.width):
+            j_range = (
+                range(0, self.calib.n_rows, self.width)
+                if self.which == "down"
+                else range(self.calib.n_rows - 1, -1, -self.width)
+            )
+            for j in j_range:
                 if right:
                     # left to right
                     for i in range(0, self.calib.n_cols, self.segment_size):
@@ -787,9 +822,14 @@ class Snake(_1DBase, _PatternBase):
                             )
                         )
                 right = not right
-        elif self.which == "right":
+        elif self.which in ("left", "right"):
             down = True
-            for i in range(0, self.calib.n_cols, self.width):
+            i_range = (
+                range(0, self.calib.n_cols, self.width)
+                if self.which == "left"
+                else range(self.calib.n_cols - 1, -1, -self.width)
+            )
+            for i in i_range:
                 if down:
                     # top to bottom
                     for j in range(0, self.calib.n_rows, self.segment_size):

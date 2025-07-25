@@ -59,8 +59,8 @@ line-length = 120
 lint.ignore = [
     "E501", # Line too long
     "E402", # Module level import not at top of file
+    "E731", # Do not assign a lambda expression, use a def
     # "B023",
-    # "E731",
     # "F722",
     "PLR2004", # Magic values
     #

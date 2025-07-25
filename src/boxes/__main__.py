@@ -5,7 +5,7 @@ import random
 import sys
 import time
 from dataclasses import replace
-from typing import Literal
+from typing import Callable, Literal
 
 import pyautogui
 
@@ -291,6 +291,61 @@ def gliders_final(calib: CalibrationData) -> None:
     ).step_all()
 
 
+def random_fun(calib: CalibrationData) -> None:
+    _ux = lambda x, y: int(255 * x)
+    _uy = lambda x, y: int(255 * y)
+    _dx = lambda x, y: int(255 * (1 - x))
+    _dy = lambda x, y: int(255 * (1 - y))
+    _uxuy = lambda x, y: int(255 * x * y)
+    _dxdy = lambda x, y: int(255 * (1 - x) * (1 - y))
+    _uxdy = lambda x, y: int(255 * x * (1 - y))
+    _dxuy = lambda x, y: int(255 * (1 - x) * y)
+    _sinx = lambda x, y: int(math.sin(x * math.pi) * 127 + 128)
+    _siny = lambda x, y: int(math.sin(y * math.pi) * 127 + 128)
+    _sinxy = lambda x, y: int(math.sin((x + y) * math.pi) * 127 + 128)
+    _cosx = lambda x, y: int(math.cos(x * math.pi) * 127 + 128)
+    _cosy = lambda x, y: int(math.cos(y * math.pi) * 127 + 128)
+    _cosxy = lambda x, y: int(math.cos((x + y) * math.pi) * 127 + 128)
+    funs = [_ux, _uy, _dx, _dy, _uxuy, _dxdy, _uxdy, _dxuy, _sinx, _siny, _sinxy, _cosx, _cosy, _cosxy]
+
+    def _random_fun() -> Callable[[float, float], tuple[int, int, int]]:
+        fr = random.choice(funs)
+        fb = random.choice(funs)
+        fg = random.choice(funs)
+        return lambda x, y: (fr(x, y), fb(x, y), fg(x, y))
+
+    while True:
+        # randomise the palette fun. each component is a random function of x and y
+        fun = _random_fun()
+        patterns.Palette2(
+            calib,
+            fun=fun,
+            d_rows=random.randint(3, 5),
+            d_cols=random.randint(1, 3),
+        ).step_all()
+
+
+def snakes(calib: CalibrationData) -> None:
+    palette = random.choice(list(colors.GROUPS.values()))
+    while True:
+        patterns.Snake(
+            calib,
+            colors.StandardCyclerColor(
+                calib, utils.bounce(colors.filter_colors(palette, avoid_dark=True, avoid_light=True))
+            ),
+            width=random.randint(1, 3),
+            segment_size=random.randint(3, 5),
+            which=random.choice(["up", "down", "left", "right"]),
+        ).step_all()
+
+        new_palette = None
+        if new_palette is None or palette != new_palette:
+            new_palette = random.choice(list(colors.GROUPS.values()))
+        palette = new_palette
+
+        time.sleep(2.0)
+
+
 def run(calib: CalibrationData) -> None:
     colors.reset_all_colors(calib)
     text.reset_all_cell_contents(calib)
@@ -310,27 +365,6 @@ def run(calib: CalibrationData) -> None:
 
     _BLOCK_ = True  # Useful for debugging, set to True to run all patterns
 
-    # gliders_final(calib)
-
-    palette = colors.GOLDS
-    while True:
-        cc = utils.bounce(colors.filter_colors(palette, avoid_dark=True, avoid_light=True))
-        ci = 0
-        cj = len(cc) // 2
-        for _ in range(len(cc)):
-            this_c1 = cc[ci]
-            ci = (ci + 1) % len(cc)
-            this_c2 = cc[cj]
-            cj = (cj + 1) % len(cc)
-
-            patterns.InwardSpiral(calib, colors.StandardColor.from_name(calib, this_c1)).step_all()
-            patterns.OutwardSpiral(calib, colors.StandardColor.from_name(calib, this_c2)).step_all()
-
-        # randomize the palette after each full cycle
-        new_palette = None
-        while new_palette is None or new_palette == palette:
-            new_palette = colors.GROUPS[random.choice(list(colors.GROUPS.keys()))]
-        palette = new_palette
 
     if _BLOCK_:
         cc = utils.bounce(colors.filter_colors(colors.GOLDS, avoid_dark=True, avoid_light=True))
