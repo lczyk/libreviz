@@ -1274,6 +1274,157 @@ class GameOfLife(_1DBase, _PatternBase):
         return _step
 
 
+if TYPE_CHECKING:
+    _game_of_life: Pattern = GameOfLife.__new__(GameOfLife)
+
+
+class Clouds(_1DBase, _PatternBase):
+    """A pattern that draws clouds on the screen, randomly selecting cells to color."""
+
+    _name_prefix = "clouds"
+
+    def __init__(
+        self,
+        calib: CalibrationData,
+        color: colors.Color,
+        *,
+        n_diffusers: int = 3,
+        n_diffuser_steps: int = 10,
+        step_radius: float = 2,
+        adjust_probabilities_by_aspect_ratio: bool = True,
+        sort_by_color: bool = False,
+    ) -> None:
+        self.calib = calib
+        self.color = color
+        self.n_diffusers = n_diffusers  # number of diffusers
+        self.n_diffuser_steps = n_diffuser_steps  # number of steps for each diffuser
+        self.adjust_probabilities_by_aspect_ratio = adjust_probabilities_by_aspect_ratio
+        self.sort_by_color = sort_by_color
+
+        # radius of the step
+        # all neighboring with distance <= step_radius will be considered for step
+        self.step_radius = step_radius  # 2 > sqrt(2) therefore will cover all 8 immediate neighbors
+        self._init_id()
+        self.reset()
+
+    def reset(self) -> None:
+        super().reset()
+
+        visited_cells: list[list[bool]] = [[False] * self.calib.n_rows for _ in range(self.calib.n_cols)]
+
+        deltas_and_probabilities: list[tuple[int, int, float]] = []
+        # for di in range(-self.step_radius, self.step_radius + 1):
+        for di in range(-math.ceil(self.step_radius), math.ceil(self.step_radius) + 1):
+            # for dj in range(-self.step_radius, self.step_radius + 1):
+            for dj in range(-math.ceil(self.step_radius), math.ceil(self.step_radius) + 1):
+                # if di == 0 and dj == 0:
+                #     continue
+                if di**2 + dj**2 <= self.step_radius**2:
+                    deltas_and_probabilities.extend([(di, dj, 1.0)])
+
+        # Adjust probabilities by aspect ratio if needed
+        if self.adjust_probabilities_by_aspect_ratio:
+            cell_area_height = self.calib.n_rows * self.calib.cell_height
+            cell_area_width = self.calib.n_cols * self.calib.cell_width
+            cell_area_aspect_ratio = cell_area_width / cell_area_height
+            if cell_area_aspect_ratio > 1:
+                # print(f"Cell area aspect ratio: {cell_area_aspect_ratio:.2f} (wider than tall)")
+                # Wider than tall, adjust probabilities to favor vertical steps
+                alpha = cell_area_aspect_ratio * 5
+                for i in range(len(deltas_and_probabilities)):
+                    di, dj, prob = deltas_and_probabilities[i]
+                    if abs(dj) > abs(di):
+                        # Favor vertical steps
+                        deltas_and_probabilities[i] = (di, dj, prob * alpha)
+            elif cell_area_aspect_ratio < 1:
+                # print(f"Cell area aspect ratio: {cell_area_aspect_ratio:.2f} (taller than wide)")
+                # Taller than wide, adjust probabilities to favor horizontal steps
+                alpha = cell_area_aspect_ratio * 5
+                for i in range(len(deltas_and_probabilities)):
+                    di, dj, prob = deltas_and_probabilities[i]
+                    if abs(dj) < abs(di):
+                        # Favor horizontal steps
+                        deltas_and_probabilities[i] = (di, dj, prob * alpha)
+
+        # Normalize probabilities
+        total_prob = sum(prob for _, _, prob in deltas_and_probabilities)
+        if total_prob > 0:
+            deltas_and_probabilities = [(di, dj, prob / total_prob) for di, dj, prob in deltas_and_probabilities]
+
+        direction_deltas = [
+            (di, dj) for di, dj, _ in deltas_and_probabilities
+        ]  # Extract only the deltas, ignoring probabilities
+        direction_probabilities = [prob for _, _, prob in deltas_and_probabilities]  # Extract only the probabilities
+
+        # print(f"Step radius: {self.step_radius}, number of deltas: {len(direction_deltas)}")
+        # print(f"Direction deltas: {direction_deltas}")
+
+        def _any_not_visited(cells: list[list[bool]], n_cols: int, n_rows: int) -> bool:
+            return any(not cells[i][j] for i in range(n_cols) for j in range(n_rows))
+
+        self.rich_colors: list[colors.RichColor] = []
+        while _any_not_visited(visited_cells, self.calib.n_cols, self.calib.n_rows):
+            # Pick a random *unvisited* cell as a starting point
+            i, j = random.choice(
+                [(i, j) for i in range(self.calib.n_cols) for j in range(self.calib.n_rows) if not visited_cells[i][j]]
+            )
+
+            # Mark the cell as visited
+            visited_cells[i][j] = True
+
+            diffusers = [[(i, j)] for _ in range(self.n_diffusers)]
+            for _ in range(self.n_diffuser_steps):
+                for di in range(self.n_diffusers):
+                    # Pick a random direction delta
+                    di_delta, dj_delta = random.choices(
+                        direction_deltas,
+                        weights=direction_probabilities,
+                        k=1,
+                    )[0]
+                    # ii = diffusers[di][0] + di_delta
+                    iprev, jprev = diffusers[di][-1]
+                    ii, jj = iprev + di_delta, jprev + dj_delta
+
+                    # Clamp the indices to the valid range
+                    ii = max(0, min(ii, self.calib.n_cols - 1))
+                    jj = max(0, min(jj, self.calib.n_rows - 1))
+
+                    # IF the cell is already visited, skip it
+                    if visited_cells[ii][jj]:
+                        continue
+
+                    # Add the cell to the cloud
+                    diffusers[di].append((ii, jj))
+
+                    # Mark the cell as visited
+                    visited_cells[ii][jj] = True
+
+            # Create a cloud from the diffuser trails
+            colored_cells: set[str] = set()
+            for diffuser in diffusers:
+                # colored_cells.extend([cell.ij2str((i, j)) for i, j in diffuser])
+                colored_cells.update(cell.ij2str((i, j)) for i, j in diffuser)
+
+            # make sure
+
+            colored_cloud = colors.ColoredCloud(self.calib, self.color, list(colored_cells))
+            self.rich_colors.append(colored_cloud)
+
+        if self.sort_by_color:
+            # Sort rich colors by color
+            self.rich_colors.sort(key=lambda rc: rc.base.rgb())
+
+        self._init_1d_base(len(self.rich_colors))
+
+    def step(self) -> PatternStep:
+        rich_color = self.rich_colors[self.i]
+
+        def _step() -> None:
+            rich_color.apply()
+
+        return _step
+
+
 ################################################################################
 
 

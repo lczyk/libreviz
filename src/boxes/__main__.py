@@ -441,6 +441,24 @@ def run(calib: CalibrationData) -> None:
     pyautogui.PAUSE = 0.04
     # pyautogui.PAUSE = 0.2
 
+    palette = colors.GROUPS[random.choice(list(colors.GROUPS.keys()))]
+    while True:
+        patterns.Clouds(
+            calib,
+            colors.StandardSamplerColor(
+                calib,
+                colors.filter_colors(palette, avoid_dark=True, avoid_light=True),
+            ),
+            n_diffusers=3,
+            n_diffuser_steps=10,
+            step_radius=1.8,
+        ).step_all()
+
+        new_palette = None
+        if new_palette is None or palette != new_palette:
+            new_palette = random.choice(list(colors.GROUPS.values()))
+        palette = new_palette
+
     _BLOCK_ = True  # Useful for debugging, set to True to run all patterns
 
     if _BLOCK_:

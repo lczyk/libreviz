@@ -753,6 +753,57 @@ if TYPE_CHECKING:
     _standard_palette_color: Color = StandardCyclerColor.__new__(StandardCyclerColor)
 
 
+class StandardSamplerColor(Color):
+    def __init__(
+        self,
+        calib: CalibrationData,
+        palette: tuple[ColorName, ...],
+        *,
+        offset: int = 0,
+        cache: bool = True,
+    ) -> None:
+        super().__init__()
+        self.calib = calib
+        self.palette = palette
+        if not self.palette:
+            raise ValueError("Palette cannot be empty")
+        self.current_index = 0 + offset % len(self.palette)
+        self.cache = cache
+
+    def rgb(self) -> "tuple[int, int, int]":
+        """Return the RGB values of the current color in the palette."""
+        color_name = self.palette[self.current_index]
+        color = STANDARD_COLORS_BY_NAME[color_name][1]
+        self._finally()
+        return color
+
+    def _apply(self) -> None:
+        """Apply the current color in the palette."""
+        color_name = self.palette[self.current_index]
+        color = StandardColor.from_name(self.calib, color_name)
+        color._apply()
+
+    def _finally(self) -> None:
+        # pick a new color from the palette
+        new_index = None
+        while new_index is None or new_index == self.current_index:
+            new_index = random.randint(0, len(self.palette) - 1)
+        self.current_index = new_index
+
+    def apply(self) -> None:
+        """Apply the current color in the palette."""
+        apply_or_recent(
+            self.calib,
+            self.rgb(),
+            self._apply,
+            cache=self.cache,
+            _finally=self._finally,
+        )
+
+    def _color(self) -> None:
+        pass
+
+
 def reset_all_colors(calib: CalibrationData) -> None:
     """Reset all colors in the grid to 'No Fill'."""
     cell.select_range(
@@ -807,7 +858,9 @@ class ColoredCell:
         cell: cell.CellStr,
     ) -> None:
         self.calib = calib
-        self.color = color
+        # self.color = color
+        rgb = color.rgb()
+        self.color = ArbitraryColor(calib, r=rgb[0], g=rgb[1], b=rgb[2], coerce=True)
         self.cell = cell
 
     @property
@@ -840,7 +893,9 @@ class ColoredRectangle:
         c2: cell.CellStr,
     ) -> None:
         self.calib = calib
-        self.color = color
+        # self.color = color
+        rgb = color.rgb()
+        self.color = ArbitraryColor(calib, r=rgb[0], g=rgb[1], b=rgb[2], coerce=True)
         self.c1 = c1
         self.c2 = c2
 
@@ -868,7 +923,8 @@ class ColoredCloud:
         cells: list[cell.CellStr],
     ) -> None:
         self.calib = calib
-        self.color = color
+        rgb = color.rgb()
+        self.color = ArbitraryColor(calib, r=rgb[0], g=rgb[1], b=rgb[2], coerce=True)
         self.cells = cells
 
     @property
