@@ -423,24 +423,7 @@ def crosses(calib: CalibrationData) -> None:
         if random.random() < 0.25:
             palette_a, palette_b = palette_b, palette_a
 
-
-def run(calib: CalibrationData) -> None:
-    colors.reset_all_colors(calib)
-    text.reset_all_cell_contents(calib)
-    time.sleep(0.1)
-
-    cell_area_width = calib.n_cols * calib.cell_width
-    cell_area_height = calib.n_rows * calib.cell_height
-    aspect_ratio = cell_area_width / cell_area_height
-    print(f"Aspect ratio: {aspect_ratio:.2f}")
-
-    # p: list[patterns.Pattern]
-
-    # pyautogui.PAUSE = 0.0
-    # pyautogui.PAUSE = 0.03
-    pyautogui.PAUSE = 0.04
-    # pyautogui.PAUSE = 0.2
-
+def clouds(calib: CalibrationData) -> None:
     palette = colors.GROUPS[random.choice(list(colors.GROUPS.keys()))]
     while True:
         patterns.Clouds(
@@ -458,6 +441,24 @@ def run(calib: CalibrationData) -> None:
         if new_palette is None or palette != new_palette:
             new_palette = random.choice(list(colors.GROUPS.values()))
         palette = new_palette
+
+
+def run(calib: CalibrationData) -> None:
+    colors.reset_all_colors(calib)
+    text.reset_all_cell_contents(calib)
+    time.sleep(0.1)
+
+    cell_area_width = calib.n_cols * calib.cell_width
+    cell_area_height = calib.n_rows * calib.cell_height
+    aspect_ratio = cell_area_width / cell_area_height
+    print(f"Aspect ratio: {aspect_ratio:.2f}")
+
+    # p: list[patterns.Pattern]
+
+    # pyautogui.PAUSE = 0.0
+    # pyautogui.PAUSE = 0.03
+    pyautogui.PAUSE = 0.04
+    # pyautogui.PAUSE = 0.2
 
     _BLOCK_ = True  # Useful for debugging, set to True to run all patterns
 
