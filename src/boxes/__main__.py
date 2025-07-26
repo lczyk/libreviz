@@ -7,6 +7,7 @@ import time
 from dataclasses import replace
 from typing import Callable, Literal
 
+import more_itertools
 import pyautogui
 
 from . import cell, colors, eject_button, patterns, text, utils
@@ -346,6 +347,83 @@ def snakes(calib: CalibrationData) -> None:
         time.sleep(2.0)
 
 
+def crosses(calib: CalibrationData) -> None:
+    warm_palettes = [
+        colors.GOLDS,
+        colors.ORANGES,
+        colors.BRICKS,
+        colors.REDS,
+    ]
+    cold_palettes = [
+        colors.INDIGOS,
+        colors.BLUES,
+        colors.TEALS,
+        colors.GREENS,
+    ]
+
+    palette_a, palette_b = warm_palettes, cold_palettes
+
+    while True:
+        palette_lights = random.choice(palette_a)
+        p: list[patterns.Pattern] = []
+
+        which: Literal["row", "column"] = "row"
+        colors_used = set()
+        for color in more_itertools.sample(
+            colors.filter_colors(
+                palette_lights,
+                avoid_dark=False,
+                avoid_light=False,
+            )
+            + colors.filter_colors(
+                palette_lights,
+                avoid_dark=True,
+                avoid_light=True,
+            ),
+            len(palette_lights),
+        ):
+            colors_used.add(color)
+            p.append(
+                patterns.Lights(
+                    calib,
+                    which=which,
+                    color=colors.StandardColor.from_name(calib, color),
+                )
+            )
+            which = "column" if which == "row" else "row"
+
+        patterns.interweave_patterns(p)
+
+        blank_color = colors.StandardColor.from_name(calib, random.choice(list(colors_used)))
+        p = [patterns.Lights(calib, which=which, color=blank_color) for which in ["row", "column"]]  # type: ignore[arg-type]
+        patterns.interweave_patterns(p)
+
+        # palette_gaussians = random.choice(palette_b)
+        # p = []
+        # for _ in range(3):
+        #     random_gaussian_color_1 = random.choice(palette_gaussians)
+        #     random_gaussian_color_2 = None
+        #     while random_gaussian_color_2 is None or random_gaussian_color_2 == random_gaussian_color_1:
+        #         # Ensure the second color is different from the first
+        #         random_gaussian_color_2 = random.choice(palette_gaussians)
+
+        #     p.append(
+        #         patterns.GaussianCells(
+        #             calib,
+        #             # inner=colors.RandomOnceColor(calib),
+        #             # outer=colors.RandomOnceColor(calib),
+        #             inner=colors.StandardColor.from_name(calib, random_gaussian_color_1),
+        #             outer=colors.StandardColor.from_name(calib, random_gaussian_color_2),
+        #             radius=2.0,
+        #         )
+        #     )
+
+        # patterns.interweave_patterns(p)
+
+        if random.random() < 0.25:
+            palette_a, palette_b = palette_b, palette_a
+
+
 def run(calib: CalibrationData) -> None:
     colors.reset_all_colors(calib)
     text.reset_all_cell_contents(calib)
@@ -364,7 +442,6 @@ def run(calib: CalibrationData) -> None:
     # pyautogui.PAUSE = 0.2
 
     _BLOCK_ = True  # Useful for debugging, set to True to run all patterns
-
 
     if _BLOCK_:
         cc = utils.bounce(colors.filter_colors(colors.GOLDS, avoid_dark=True, avoid_light=True))

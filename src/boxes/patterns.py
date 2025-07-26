@@ -486,12 +486,13 @@ class GaussianCells(_1DBase, _PatternBase):
         inner: colors.Color,
         outer: colors.Color,
         radius: float = 1.5,
+        distance_tol: float = 20.0,
     ) -> None:
         self.calib = calib
         self.color_inner = inner
         self.color_outer = outer
         self.radius = radius
-        self._init_1d_base(calib.n_cols * calib.n_rows)
+        self.distance_tol = distance_tol
         self._init_id()
         self.reset()
 
@@ -512,12 +513,11 @@ class GaussianCells(_1DBase, _PatternBase):
 
         # group by color
         grouped_coords: dict[tuple[int, int, int], list[tuple[int, int]]] = {}
-        distance_tol = 10
         for i, j, color_rgb in coords_with_color:
             # Check if the color is already in the dictionary
             found = False
             for existing_color in grouped_coords:
-                if colors.color_distance(existing_color, color_rgb) < distance_tol:
+                if colors.color_distance(existing_color, color_rgb) < self.distance_tol:
                     grouped_coords[existing_color].append((i, j))
                     found = True
                     break
@@ -525,27 +525,34 @@ class GaussianCells(_1DBase, _PatternBase):
                 grouped_coords[color_rgb] = [(i, j)]
 
         # shuffle the colors in each group
-        for color_rgb in grouped_coords:
-            random.shuffle(grouped_coords[color_rgb])
-
-        # flatten the grouped coordinates
-        self.coords = []
+        # for color_rgb in grouped_coords:
+        #     random.shuffle(grouped_coords[color_rgb])
+        # simplify monochromatic colors in each group
+        grouped_simplified_coords: dict[tuple[int, int, int], list[colors.RichColor]] = {}
         for color_rgb, coords in grouped_coords.items():
-            for i, j in coords:
-                self.coords.append((i, j, color_rgb))
-
-    def step(self) -> PatternStep:
-        i, j, color_rgb = self.coords[self.i]
-
-        def _step() -> None:
-            click(
-                *cell.cell_coords(
+            colored_cells = [
+                colors.ColoredCell(
                     self.calib,
+                    colors.ArbitraryColor(self.calib, *color_rgb),
                     cell.ij2str((i, j)),
                 )
-            )
-            # print(f"Applying color {color_rgb} to cell ({i}, {j})")
-            colors.ArbitraryColor(self.calib, *color_rgb).apply()
+                for i, j in coords
+            ]
+            simplified_color = colors.simplify_monochrome_colors(colored_cells)
+            grouped_simplified_coords[color_rgb] = simplified_color
+
+        # flatten the grouped coordinates
+        self.rich_colors: list[colors.RichColor] = []
+        for rich_colors in grouped_simplified_coords.values():
+            self.rich_colors.extend(rich_colors)
+
+        self._init_1d_base(len(self.rich_colors))
+
+    def step(self) -> PatternStep:
+        rich_color = self.rich_colors[self.i]
+
+        def _step() -> None:
+            rich_color.apply()
 
         return _step
 

@@ -512,9 +512,9 @@ if TYPE_CHECKING:
 
 
 def _random_color_ij(
-    calib: CalibrationData,
     *,
     avoid_dark: bool = True,
+    avoid_light: bool = True,
     avoid_white: bool = True,
 ) -> ColorIJ:
     # all_color_indices = [(ci, cj) for cj in range(calib.n_color_rows) for ci in range(calib.n_color_cols)]
@@ -539,6 +539,21 @@ def _random_color_ij(
 
         to_sample = [c for c in to_sample if not _is_dark_color(c)]
 
+    if avoid_light:
+
+        def _is_light_color(color_name: ColorName) -> bool:
+            """Check if the color is considered light."""
+            if color_name in (
+                "white",
+                "light_gray_5",
+                "light_gray_4",
+            ):
+                return True
+
+            return bool(color_name.startswith("light_") and color_name.endswith("_4"))
+
+        to_sample = [c for c in to_sample if not _is_light_color(c)]
+
     # Randomly select a color from the remaining colors
     sampled_name = random.choice(to_sample)
     sampled_ij = STANDARD_COLORS_BY_NAME[sampled_name][0]
@@ -551,14 +566,16 @@ class RandomOnceColor(Color):
         calib: CalibrationData,
         *,
         avoid_dark: bool = True,
+        avoid_white: bool = True,
+        avoid_light: bool = True,
     ) -> None:
         super().__init__()
         self.calib = calib
-        self.color = _random_color_ij(calib, avoid_dark=avoid_dark)
+        self.color = _random_color_ij(avoid_dark=avoid_dark, avoid_white=avoid_white, avoid_light=avoid_light)
 
     def rgb(self) -> "tuple[int, int, int]":
         """Return the RGB values of the color."""
-        raise NotImplementedError("We don't have the lookup table for RGB values for the standard colors yet")
+        return STANDARD_COLORS_MATRIX[self.color[1]][self.color[0]][1]
 
     def apply(self) -> None:
         apply_or_recent(
@@ -588,7 +605,7 @@ class RandomChangingColor(Color):
     ) -> None:
         super().__init__()
         self.calib = calib
-        self.color_ij = _random_color_ij(calib, avoid_dark=avoid_dark)
+        self.color_ij = _random_color_ij(avoid_dark=avoid_dark)
         self.avoid_dark = avoid_dark
 
     def rgb(self) -> "tuple[int, int, int]":
@@ -600,7 +617,7 @@ class RandomChangingColor(Color):
 
     def apply(self) -> None:
         apply_or_recent(self.calib, self.rgb(), self._apply)
-        self.color_ij = _random_color_ij(self.calib, avoid_dark=self.avoid_dark)
+        self.color_ij = _random_color_ij(avoid_dark=self.avoid_dark)
 
     def indices(self) -> "tuple[int, int]":
         """Return the coordinates of the color in the palette."""
